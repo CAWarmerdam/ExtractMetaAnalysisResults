@@ -95,7 +95,7 @@ snp_ref=bin/hase/data/1000G-30x.ref.gz
 #--SnpFilter             Filter to include SNPs/variants into the association results.  One of two: first, file with the list of SNPs/variants to include. In that case, no header expected. Second, individual SNP IDs specified and separated by space. Defaults to None.
 #--Chunks                Number of chunks which was used for original meta-analysis. Defaults to 100.
 
-NXF_VER=20.10.0 ${nextflow_path}/nextflow run ExtractHaseResults.nf \
+NXF_VER=20.10.0 ${nextflow_path}/nextflow run generateDatabase.nf \
 --inputfolder ${input_folder} \
 --outputfile ${output_file} \
 --NumberOfCovariates ${nr_covariates} \
