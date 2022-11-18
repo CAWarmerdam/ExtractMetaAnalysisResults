@@ -44,7 +44,7 @@ def main(argv=None):
         argv = sys.argv[1:]
 
     # List all parquet files in the given directory
-    virtual_table_creation_format = "CREATE VIRTUAL TABLE eqtls_{} USING parquet('{}')"
+    virtual_table_creation_format = "CREATE VIRTUAL TABLE eqtls_{} USING parquet('{}');"
     select_virtual_table_format = "SELECT * FROM eqtls_{}"
 
     virtual_table_creation_commands = list()

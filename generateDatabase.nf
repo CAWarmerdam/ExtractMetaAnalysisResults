@@ -19,6 +19,7 @@ nextflow run ExtractHaseResults.nf \
 Mandatory arguments:
 --inputfolder           Path to the folder with HASE result .parquet files.
 --outputfile            Path to where the database should be written
+--outputfolder		Path to output
 
 """.stripIndent()
 
@@ -30,8 +31,7 @@ if (params.help){
 }
 
 //Default parameters
-Channel.fromPath(params.inputfolder).set {parquet_path_ch}
-Channel.fromPath(params.outputfile).set {output_file_ch}
+Channel.fromPath(params.inputfolder).into { parquet_path_ch; parquet_path_ch2 }
 
 
 log.info """=======================================================
@@ -64,16 +64,24 @@ process GenerateSqliteScript {
 
     script:
         """
-        python3 $baseDir/bin/generate_sqlite_script.py ${parquet_path}
+        echo ".load $baseDir/bin/libparquet" > sqlite_script.sql
+        python3 $baseDir/bin/generate_sqlite_script.py ${parquet_path}/ >> sqlite_script.sql
         """
 }
 
 process GenerateSqliteDatabase {
     tag {GenerateSqliteDatabase}
 
+    publishDir "${params.outputfolder}", mode: 'copyNoFollow', overwrite: true
+
     input:
+        path parquet_path from parquet_path_ch2
         file sqlite_script from sqlite_script_ch
-        file output_file from output_file_ch
+        val output_file from params.outputfile
+
+    output:
+        file("${output_file}")
+        path("${parquet_path}")
 
     script:
         """
