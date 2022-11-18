@@ -19,11 +19,11 @@ nextflow_path=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-
 
 input_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/data
 output_file=eqtlgen_metaanalysis_2022_11_17.db
-output_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-11-17/output
+db_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-11-17/db
 
 NXF_VER=20.10.0 ${nextflow_path}/nextflow run generateDatabase.nf \
 --inputfolder ${input_folder} \
 --outputfile ${output_file} \
---outputfolder ${output_folder} \
+--dbfolder ${db_folder} \
 -resume \
 -profile slurm,singularity

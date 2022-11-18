@@ -31,7 +31,7 @@ if (params.help){
 }
 
 //Default parameters
-Channel.fromPath(params.inputfolder).into { parquet_path_ch; parquet_path_ch2 }
+Channel.fromPath(params.inputfolder).collect().set { parquet_path_ch }
 
 
 log.info """=======================================================
@@ -64,7 +64,7 @@ process GenerateSqliteScript {
 
     script:
         """
-        echo ".load $baseDir/bin/libparquet" > sqlite_script.sql
+        echo ".load libparquet" > sqlite_script.sql
         python3 $baseDir/bin/generate_sqlite_script.py ${parquet_path}/ >> sqlite_script.sql
         """
 }
@@ -72,12 +72,12 @@ process GenerateSqliteScript {
 process GenerateSqliteDatabase {
     tag {GenerateSqliteDatabase}
 
-    publishDir "${params.outputfolder}", mode: 'copyNoFollow', overwrite: true
+    publishDir "${params.dbfolder}", mode: 'copyNoFollow', overwrite: true
 
     input:
-        path parquet_path from parquet_path_ch2
+        path parquet_path from parquet_path_ch
         file sqlite_script from sqlite_script_ch
-        val output_file from params.outputfile
+        val output_file from params.dbfile
 
     output:
         file("${output_file}")
@@ -87,6 +87,25 @@ process GenerateSqliteDatabase {
         """
         sqlite3 ${output_file} '.read ${sqlite_script}'
         """
+}
+
+process Analysis {
+    tag {Analysis}
+
+    publishDir "{params.outputfolder}", mode: 'copy', overwrite: true
+
+    input:
+        path parquet_path from parquet_path_ch
+        val db_file from params.dbfile
+
+    output:
+        file("output.csv")
+
+    script:
+        """
+        Rscript $baseDir/bin/db_query_template.R --database ${db_file}
+        """
+
 }
 
 workflow.onComplete {

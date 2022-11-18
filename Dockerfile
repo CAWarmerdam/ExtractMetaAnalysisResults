@@ -19,7 +19,8 @@ RUN conda env create -f /environment.yml && conda clean -a
 
 # Install libparquet
 RUN mkdir -p /tools
-RUN cd tools
-RUN wget https://s3.amazonaws.com/cldellow/public/libparquet/libparquet.so.xz
-RUN unxz libparquet.so.xz
-RUN cd -
+RUN wget -P /tools https://s3.amazonaws.com/cldellow/public/libparquet/libparquet.so.xz
+RUN unxz tools/libparquet.so.xz
+
+# Put libparquet.so in path so we can use sqlite3 without having to manually load libparquet.
+ENV LD_LIBRARY_PATH=/tools:$LD_LIBRARY_PATH

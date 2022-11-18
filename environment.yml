@@ -7,14 +7,14 @@ channels:
   - anaconda
 dependencies:
   - python=3.9.12
-  - setuptools
+  - setuptools=65.5.0
   - r-base=4.2.2
   - r-data.table
   - r-tidyverse
-  - coreutils
-  - bitarray
-  - Cython
+  - coreutils=8.25
+  - bitarray=2.5.1
+  - Cython=0.29.32
   - conda-forge::numpy=1.23.4
   - conda-forge::pandas=1.5.1
-  - conda-forge::scipy
-  - conda-forge::pyarrow
+  - conda-forge::scipy=1.9.3
+  - conda-forge::pyarrow=9.0.0
