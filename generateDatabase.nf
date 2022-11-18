@@ -80,7 +80,7 @@ process GenerateSqliteDatabase {
         val output_file from params.dbfile
 
     output:
-        file("${output_file}")
+        file("${output_file}") into db_file_ch
         path("${parquet_path}")
 
     script:
@@ -96,7 +96,7 @@ process Analysis {
 
     input:
         path parquet_path from parquet_path_ch
-        val db_file from params.dbfile
+        file db_file from db_file_ch
 
     output:
         file("output.csv")
