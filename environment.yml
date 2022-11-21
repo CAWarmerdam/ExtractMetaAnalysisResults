@@ -8,9 +8,16 @@ channels:
 dependencies:
   - python=3.9.12
   - setuptools=65.5.0
-  - r-base=4.2.2
-  - r-data.table
-  - r-tidyverse
+  - sqlite
+  - conda-forge::r
+  - conda-forge::r-rcpp
+  - conda-forge::r-stringi
+  - conda-forge::r-base=4.2.2
+  - conda-forge::r-essentials
+  - conda-forge::r-data.table
+  - conda-forge::r-tidyverse
+  - conda-forge::r-argparse
+  - conda-forge::r-rsqlite
   - coreutils=8.25
   - bitarray=2.5.1
   - Cython=0.29.32

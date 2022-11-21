@@ -45,16 +45,17 @@ main <- function(argv=NULL) {
 
   # Process input
   args <- parser$parse_args(argv)
-  eqtls_db_connection <- DBI::dbConnect(RSQLite::SQLite(args$database))
+  eqtls_db_connection <- DBI::dbConnect(RSQLite::SQLite(), dbname=args$database)
 
-  DBI::dbExecute(eqtls_db_connection, ".load libparquet")
+  DBI::dbExecute(eqtls_db_connection, "SELECT load_extension('/tools/libparquet.so');")
 
   # Perform method
-  eqtls_db <- tbl(eqtls_db_connection, "eqtls")
-  gene_prpf8 <- eqtls_db %>% filter(phenotype=="pheno_2")
+  selection <- DBI::dbGetQuery(
+    eqtls_db_connection,
+    "SELECT variant from eqtls where phenotype='pheno_2' and sample_size<400")
 
   # Process output
-  write.table(gene_prpf8, "output.txt")
+  write.table(selection, "output.txt")
 }
 
 if (sys.nframe() == 0 && !interactive()) {
