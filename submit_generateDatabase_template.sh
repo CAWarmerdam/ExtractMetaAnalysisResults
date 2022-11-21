@@ -24,6 +24,7 @@ output_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-
 
 NXF_VER=20.10.0 ${nextflow_path}/nextflow run generateDatabase.nf \
 --inputfolder ${input_folder} \
+--parquet 'node_27_*_??_result.parquet' \
 --dbfile ${output_file} \
 --dbfolder ${db_folder} \
 --outputfolder ${output_folder} \

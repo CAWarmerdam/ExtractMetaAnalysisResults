@@ -52,7 +52,7 @@ main <- function(argv=NULL) {
   # Perform method
   selection <- DBI::dbGetQuery(
     eqtls_db_connection,
-    "SELECT variant from eqtls where phenotype='pheno_2' and sample_size<400")
+    "SELECT * FROM eqtls")
 
   # Process output
   write.table(selection, "output.txt")

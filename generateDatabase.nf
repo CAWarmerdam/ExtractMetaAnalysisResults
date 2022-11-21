@@ -58,6 +58,7 @@ process GenerateSqliteScript {
 
     input:
         path parquet_path from parquet_path_ch
+        val parquet_glob from params.parquet
 
     output:
         file("sqlite_script.sql") into sqlite_script_ch
@@ -65,7 +66,7 @@ process GenerateSqliteScript {
     script:
         """
         echo ".load /tools/libparquet" > sqlite_script.sql
-        python3 $baseDir/bin/generate_sqlite_script.py ${parquet_path}/ >> sqlite_script.sql
+        python3 $baseDir/bin/generate_sqlite_script.py --path ${parquet_path} --parquet ${parquet_glob} >> sqlite_script.sql
         """
 }
 
@@ -99,7 +100,7 @@ process Analysis {
         file db_file from db_file_ch
 
     output:
-        file("output.csv")
+        file("output.txt")
 
     script:
         """
