@@ -24,6 +24,7 @@ root directory of this source tree. If not, see <https://www.gnu.org/licenses/>.
 import sys
 import os
 import glob
+import argparse
 
 # Metadata
 __program__ = "Generate SQLite commands for generating vtables"
@@ -38,10 +39,21 @@ __description__ = "{} is a program developed and maintained by {}. " \
                                         __author__,
                                         __license__)
 
+# Argument parser
+parser = argparse.ArgumentParser(
+    prog = 'GenerateSqliteScript',
+    description = 'Generates an SQLite3 script for generating virtual tables of parquet files')
+
+parser.add_argument('--path', help="path to parquet files directory")
+parser.add_argument('--parquet',
+                    help='globbing pattern for parquet files to generate SQLite3 virtual tables for')
+
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
+
+    args = parser.parse_args(argv)
 
     # List all parquet files in the given directory
     virtual_table_creation_format = "CREATE VIRTUAL TABLE eqtls_{} USING parquet('{}');"
@@ -50,7 +62,7 @@ def main(argv=None):
     virtual_table_creation_commands = list()
     virtual_table_select_commands = list()
 
-    for file_number, parquet_file in enumerate(glob.glob("{}*.parquet".format(argv[0]))):
+    for file_number, parquet_file in enumerate(glob.glob("{}{}{}".format(args.path, os.path.sep, args.parquet))):
         virtual_table_creation_commands.append(
             virtual_table_creation_format.format(file_number, parquet_file))
 
