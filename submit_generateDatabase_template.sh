@@ -17,13 +17,15 @@ module load squashfs/4.4
 
 nextflow_path=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-11-17/tools/
 
-input_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/data
+input_folder=/gpfs/space/GI/eQTLGen/freeze1/eqtl_mapping/output/empirical_4GenPC20ExpPC_2022-11-14/MetaAnalysisResultsEncoded/
 output_file=eqtlgen_metaanalysis_2022_11_17.db
 db_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-11-17/db
+output_folder=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/sqliteTest/2022-11-17/output
 
 NXF_VER=20.10.0 ${nextflow_path}/nextflow run generateDatabase.nf \
 --inputfolder ${input_folder} \
---outputfile ${output_file} \
+--dbfile ${output_file} \
 --dbfolder ${db_folder} \
+--outputfolder ${output_folder} \
 -resume \
 -profile slurm,singularity

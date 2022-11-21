@@ -64,7 +64,7 @@ process GenerateSqliteScript {
 
     script:
         """
-        echo ".load libparquet" > sqlite_script.sql
+        echo ".load /tools/libparquet" > sqlite_script.sql
         python3 $baseDir/bin/generate_sqlite_script.py ${parquet_path}/ >> sqlite_script.sql
         """
 }
