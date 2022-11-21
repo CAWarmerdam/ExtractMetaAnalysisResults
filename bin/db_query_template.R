@@ -47,7 +47,7 @@ main <- function(argv=NULL) {
   args <- parser$parse_args(argv)
   eqtls_db_connection <- DBI::dbConnect(RSQLite::SQLite(args$database))
 
-  DBI::dbExecute(eqtls_db_connection, ".load libparquet")
+  DBI::dbExecute(eqtls_db_connection, "SELECT load_extension('/tools/libparquet.so');")
 
   # Perform method
   eqtls_db <- tbl(eqtls_db_connection, "eqtls")
