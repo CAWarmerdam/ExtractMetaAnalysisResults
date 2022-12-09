@@ -18,6 +18,7 @@ dependencies:
   - conda-forge::r-tidyverse
   - conda-forge::r-argparse
   - conda-forge::r-rsqlite
+  - conda-forge::r-arrow
   - coreutils=8.25
   - bitarray=2.5.1
   - Cython=0.29.32

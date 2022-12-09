@@ -24,12 +24,14 @@
 library(argparse)
 library(tidyverse)
 library(DBI)
+library(arrow)
+#library(duckdb)
 
 # Declare constants
 
 parser <- ArgumentParser(description='')
-parser$add_argument('--database',
-                    help='Path to database')
+parser$add_argument('--dataset',
+                    help='Path to dataset')
 
 # Declare function definitions
 
@@ -45,14 +47,20 @@ main <- function(argv=NULL) {
 
   # Process input
   args <- parser$parse_args(argv)
-  eqtls_db_connection <- DBI::dbConnect(RSQLite::SQLite(), dbname=args$database)
+  eqtls_dataset <- arrow::open_dataset(args$dataset)
 
-  DBI::dbExecute(eqtls_db_connection, "SELECT load_extension('/tools/libparquet.so');")
+  # Select results for specific phenotype and time this.
+  start_time <- Sys.time()
+  selection <- eqtls_dataset %>% filter(phenotype == "ENSG00000164167") %>% head() %>% collect()
+  end_time <- Sys.time()
+  arrow_time <- end_time - start_time
+  message(sprintf("Filtering gene: %s", format(arrow_time)))
 
-  # Perform method
-  selection <- DBI::dbGetQuery(
-    eqtls_db_connection,
-    "SELECT * FROM eqtls")
+  #
+  # # Perform method
+  # selection <- DBI::dbGetQuery(
+  #   eqtls_db_connection,
+  #   "SELECT * FROM eqtls")
 
   # Process output
   write.table(selection, "output.txt")
