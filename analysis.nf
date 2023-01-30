@@ -56,17 +56,18 @@ log.info "======================================================="
 process Analysis {
     tag {Analysis}
 
-    publishDir "{params.outputfolder}", mode: 'copy', overwrite: true
+    publishDir "${params.outputfolder}", mode: 'copy', overwrite: true
 
     input:
         path parquet_dataset from parquet_path_ch.collect()
+        path variant_set from Channel.fromPath(params.variants)
 
     output:
-        file("output.txt")
+        file("ExtractedPhenotype_*.txt.gz")
 
     script:
         """
-        Rscript $baseDir/bin/db_query_template.R --dataset parquet_dataset
+        Rscript $baseDir/bin/db_query_template.R --dataset ${parquet_dataset} --variants ${variant_set}
         """
 
 }
