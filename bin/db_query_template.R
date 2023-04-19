@@ -32,6 +32,11 @@ library(arrow)
 parser <- ArgumentParser(description='')
 parser$add_argument('--dataset',
                     help='Path to dataset')
+parser$add_argument('--variants',
+                    help='Variants to sample')
+
+gene_selection <- c(
+  "ENSG00000090339")
 
 # Declare function definitions
 
@@ -49,12 +54,37 @@ main <- function(argv=NULL) {
   args <- parser$parse_args(argv)
   eqtls_dataset <- arrow::open_dataset(args$dataset)
 
+  to.int <- function(values, data.type) {
+    return(unlist(sapply(values, function(value) Scalar$create(value, data.type))))
+  }
+
+  variant_tibble <- read_delim(args$variants, delim=" ") %>% 
+    transmute(chromosome = CHR, bp = bp, variant=ID) %>%
+    as_arrow_table(
+      schema = schema(chromosome = int8(), bp = int32(), variant=string()))
+
+  print(variant_tibble)
+  
   # Select results for specific phenotype and time this.
-  start_time <- Sys.time()
-  selection <- eqtls_dataset %>% filter(phenotype == "ENSG00000164167") %>% head() %>% collect()
-  end_time <- Sys.time()
-  arrow_time <- end_time - start_time
-  message(sprintf("Filtering gene: %s", format(arrow_time)))
+  for (gene in gene_selection) {
+  
+    start_time <- Sys.time()
+    selection <- eqtls_dataset %>% filter(phenotype == gene) %>% collect() %>%
+      mutate(p = pnorm(abs(beta/standard_error), lower.tail=FALSE)*2)
+    end_time <- Sys.time()
+    arrow_time <- end_time - start_time
+    message(sprintf("Filtering gene: %s", format(arrow_time)))
+
+    write.table(selection, sprintf("ExtractedPhenotype_%s.txt.gz", gene), row.names=F, sep="\t", quote=F)
+ 
+  }
+
+  #start_time <- Sys.time()
+  #selection_positional <- eqtls_dataset %>%
+  #  semi_join(variant_tibble, by = c("chromosome"="chromosome", "bp"="bp")) %>% collect()
+  #end_time <- Sys.time()
+  #arrow_time <- end_time - start_time
+  #message(sprintf("Filtering gene: %s", format(arrow_time)))
 
   #
   # # Perform method
@@ -63,9 +93,11 @@ main <- function(argv=NULL) {
   #   "SELECT * FROM eqtls")
 
   # Process output
-  write.table(selection, "output.txt")
+  #write.table(selection, "output.txt")
+  #write.table(selection_positional, "output_positional.txt")
 }
 
 if (sys.nframe() == 0 && !interactive()) {
   main()
 }
+
