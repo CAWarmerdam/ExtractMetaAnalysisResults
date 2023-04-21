@@ -25,7 +25,6 @@ process AnnotateLoci {
         path significantResults
         path variantReference
         path geneReference
-        val variant
 
     output:
         path "loci.variants.bed" emit: variant_loci

@@ -6,9 +6,11 @@
 nextflow.enable.dsl = 2
 
 // import modules
-include { CalculateAccuratePermutationPValues } from './modules/CalculateAccuratePermutationPValues'
-include { GetUncorrelatedVariants } from './modules/CalculateAccuratePermutationPValues'
-include { GetBreakpoints } from './modules/CalculateAccuratePermutationPValues'
+include { ExtractSignificantResults; AnnotateLoci; IntersectLoci } from './modules/CollectSignificantLoci'
+include { CalculateAccuratePermutationPValues; GetUncorrelatedVariantsWithLdDataset } from './modules/CalculateAccuratePermutationPValues'
+include { CalculateLdMatrix; UncorrelatedGenes } from './modules/CalculateLdMatrix'
+include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
+include { CalculateZScores } from './modules/CalculateZScores'
 
 
 def helpmessage() {
@@ -51,8 +53,11 @@ if (params.help){
 //Default parameters
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
-Channel.fromPath(params.reference).collect().set { reference_bcf_files_ch }
+Channel.fromPath(params.reference_data).collect().set { reference_bcf_files_ch }
 Channel.fromPath(params.genes).splitText().set { genes_ch }
+Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
+Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
+Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
@@ -100,6 +105,11 @@ workflow CALCULATE_LD {
     take:
         reference_bcf_files_ch
         permuted_parquet_ch
+        empirical_parquet_ch
+        genes_ch
+        genome_ref_ch
+        variant_reference_ch
+        gene_reference_ch
 
     main:
         // Obtain a list of uncorrelated variants
@@ -122,19 +132,19 @@ workflow CALCULATE_LD {
             .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader = true).collect()
 
         // Add bp data to loci
-        loci_annotated = AnnotateLoci(loci_ch_raw)
+        loci_annotated = AnnotateLoci(loci_ch_raw, variant_reference_ch, gene_reference_ch)
 
         // Flank loci and find the intersect between them
         loci_ch = IntersectLoci(
             loci_annotated.variant_loci, variant_flank_size,
-            loci_annotated.gene_loci, gene_flank_size, genome_ref)
+            loci_annotated.gene_loci, gene_flank_size, genome_ref_ch)
             .splitText( by: 10 )
 
         // Calculate LD for all loci
         ld_ch = CalculateLd(permuted_parquet_ch, uncorrelated_genes_ch, loci_ch)
 
     emit:
-        GetUncorrelatedVariants.out
+        uncorrelated_variants_ch
 
 }
 
