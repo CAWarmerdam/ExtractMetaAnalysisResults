@@ -1,6 +1,5 @@
 #!/bin/bash nextflow
 
-
 process ExtractSignificantResults {
     input:
         path eqtls
@@ -11,13 +10,15 @@ process ExtractSignificantResults {
         path "loci.txt"
 
     script:
-        '''
-        python3 $baseDir/bin/extract_parquet_results.py \
-            --input-file ${input} \
-            --genes ${genes.join(' ')} \
+        gene_arg = genes.join(" ")
+
+        """
+        extract_parquet_results.py \
+            --input-file ${eqtls} \
+            --genes ${gene_arg} \
             --p-thresh ${p_value} \
-            --output-file z_scores.txt \
-        '''
+            --output-file z_scores.txt
+        """
 }
 
 process AnnotateLoci {

@@ -10,8 +10,10 @@
 # depending on the method which is used for dependency management)
 module load jdk/16.0.1
 module load openjdk/11.0.2
-module load any/singularity
-module load squashfs/4.4
+module load squashfs
+module load singularity
+
+set -f
 
 # NB! Following will extract all the genes and SNPs! In case of full mapping,
 # it is advisable to use gene filter or P-value filter to get manageable subset!

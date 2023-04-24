@@ -54,7 +54,7 @@ if (params.help){
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.reference_data).set { reference_bcf_files_ch }
-Channel.fromPath(params.genes).splitText().set { genes_ch }
+Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
