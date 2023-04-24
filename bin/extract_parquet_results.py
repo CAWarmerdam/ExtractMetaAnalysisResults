@@ -3,7 +3,7 @@
 import argparse
 import re
 import sys
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
@@ -16,8 +16,7 @@ SCHEMA = pa.schema([("variant", pa.string()), ("beta", pa.float64()),
                     ("sample_size", pa.float64())])
 
 
-class QtlFilter:
-    __metaclass__ = ABCMeta
+class QtlFilter(ABC):
     _operator = None
     _field_name = None
 
@@ -33,7 +32,6 @@ class QtlFilter:
 
 
 class QtlSetFilter(QtlFilter):
-    __metaclass__ = ABCMeta
     _operator = "in"
 
     def __init__(self, values):
