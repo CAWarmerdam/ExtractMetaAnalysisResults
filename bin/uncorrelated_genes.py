@@ -60,6 +60,8 @@ def main(argv=None):
     with open(args.output_file, 'w') as f:
         f.write('\n'.join(sorted(uncorrelated_genes)))
 
+    return 0
+
 
 if __name__ == '__main__':
     main(sys.exit())
