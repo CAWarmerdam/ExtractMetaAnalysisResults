@@ -126,7 +126,7 @@ workflow CALCULATE_LD {
         uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch, 0.1)
 
         // Get a collection of chunks for which to calculate LD
-        loci_ch_raw = ExtractSignificantResults(empirical_parquet_ch, genes_buffered, 0.00000005)}
+        loci_ch_raw = ExtractSignificantResults(empirical_parquet_ch, genes_buffered, 0.00000005)
             .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
 
         // Add bp data to loci
