@@ -19,7 +19,7 @@ module load squashfs/4.4
 nextflow_path=/gpfs/space/GI/eQTLGen/EstBB_testing/MetaAnalysis/tools
 
 input_folder=/gpfs/space/GI/eQTLGen/hase_output_testing/output/freeze1/eqtls/
-output_folder=/gpfs/space/GI/eQTLGen/hase_output_testing/output/test123
+output_folder=/gpfs/space/GI/eQTLGen/hase_output_testing/output/t
 variants=/gpfs/space/GI/eQTLGen/hase_output_testing/sampled_variants.txt
 
 NXF_VER=21.10.6 ${nextflow_path}/nextflow run analysis.nf \

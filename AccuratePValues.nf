@@ -59,6 +59,9 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
+variant_flank_size=1000000
+gene_flank_size=1000000
+
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
 ======================================================="""
@@ -136,7 +139,7 @@ workflow CALCULATE_LD {
             .splitText( by: 10 )
 
         // Calculate LD for all loci
-        ld_ch = CalculateLd(permuted_parquet_ch, uncorrelated_genes_ch, loci_ch)
+        ld_ch = CalculateLdMatrix(permuted_parquet_ch, uncorrelated_genes_ch, loci_ch)
 
 }
 

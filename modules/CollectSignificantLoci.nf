@@ -27,8 +27,8 @@ process AnnotateLoci {
         path geneReference
 
     output:
-        path "loci.variants.bed" emit: variant_loci
-        path "loci.genes.bed" emit: gene_loci
+        path "loci.variants.bed", emit: variant_loci
+        path "loci.genes.bed", emit: gene_loci
 
     script:
         '''
@@ -54,8 +54,8 @@ process IntersectLoci {
     script:
         // Calculate flanks for genes, calculate flanks for snps, calculate union.
         '''
-        bedtools flank -i "${variantLoci}" -g hg38.genome -b "${variantFlankSize}" > "variant_loci.flank.bed"
-        bedtools flank -i "${geneLoci}" -g hg38.genome -b "${geneFlankSize}" > "gene_loci.flank.bed"
+        bedtools flank -i "${variantLoci}" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
+        bedtools flank -i "${geneLoci}" -g "${genomeRef}" -b "${geneFlankSize}" > "gene_loci.flank.bed"
 
         # Get the union of the two bed files (including flanks)
         bedtools unionbedg -i "variant_loci.flank.bed" "gene_loci.flank.bed" -d 0 > union.bed
