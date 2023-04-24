@@ -10,9 +10,9 @@ process UncorrelatedGenes {
         path "uncorrelated_genes.txt"
 
     script:
-        '''
+        """
         python2 $baseDir/bin/uncorrelated_genes.py ${matrix} "uncorrelated_genes.txt" -t 0.1
-        '''
+        """
 }
 
 process CalculateLdMatrix {
@@ -25,11 +25,11 @@ process CalculateLdMatrix {
         path "ld.txt"
 
     script:
-        '''
+        """
         python3 $baseDir/bin/ld_calculator.py \
         --permuted ${permuted} \
         --genes ${genes} \
         --loci ${loci.join(" ")} \
         --out "ld.txt"
-        '''
+        """
 }

@@ -15,7 +15,7 @@ process CalculateAccuratePermutationPValues {
       path "output"
 
     script:
-    '''
+    """
     python2 accurate_pvalues.py \
     --ad-test-table ${andersonDarlingTable} \
     --empirical ${empiricalResults} \
@@ -24,7 +24,7 @@ process CalculateAccuratePermutationPValues {
     --breaks ${breakpoints} \
     --variants ${uncorrelatedVariants} \
     --output-prefix "output"
-    '''
+    """
 }
 
 process GetUncorrelatedVariantsWithLdDataset {
@@ -36,8 +36,8 @@ process GetUncorrelatedVariantsWithLdDataset {
       path "uncorrelated.tsv"
 
     script:
-    '''
+    """
 
-    '''
+    """
 
 }
