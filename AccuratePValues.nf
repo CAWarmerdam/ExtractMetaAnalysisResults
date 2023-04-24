@@ -107,34 +107,24 @@ log.info "======================================================="
 // }
 
 workflow CALCULATE_LD {
-    take:
-        reference_bcf_files_ch
-        permuted_parquet_ch
-        empirical_parquet_ch
-        genes_ch
-        genome_ref_ch
-        variant_reference_ch
-        gene_reference_ch
-
-    main:
         // Obtain a list of uncorrelated variants
         uncorrelated_variants_ch = GetUncorrelatedVariants(reference_bcf_files_ch)
             .collectFile(name: 'merged.prune.in', newLine: true).collect()
 
         // calculate the Z-scores for each parquet file
         zscore_ch = genes_ch
-            .buffer(size: 100, remainder = true)
+            .collate(100)
             .map{ gene_list -> CalculateZScore(permuted_parquet_ch, gene_list, uncorrelated_variants_ch) }
-            .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader = true).collect()
+            .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
 
         // Calculate gene gene matrix correlations
-        uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch)
+        uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch, 0.1)
 
         // Get a collection of chunks for which to calculate LD
         loci_ch_raw = genes_ch
-            .buffer(size: 100, remainder = true)
+            .collate(100)
             .map{ gene_list -> CollectSignificantLoci(empirical_parquet_ch, gene_list)}
-            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader = true).collect()
+            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
 
         // Add bp data to loci
         loci_annotated = AnnotateLoci(loci_ch_raw, variant_reference_ch, gene_reference_ch)
@@ -147,9 +137,6 @@ workflow CALCULATE_LD {
 
         // Calculate LD for all loci
         ld_ch = CalculateLd(permuted_parquet_ch, uncorrelated_genes_ch, loci_ch)
-
-    emit:
-        uncorrelated_variants_ch
 
 }
 
