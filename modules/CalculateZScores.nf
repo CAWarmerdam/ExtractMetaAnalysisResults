@@ -13,7 +13,7 @@ process CalculateZScores {
 
     script:
         """
-        python2 $baseDir/bin/extract_parquet_results.py \
+        python3 $baseDir/bin/extract_parquet_results.py \
             --input-file ${input} \
             --genes ${genes.join(' ')} \
             --variants ${variants.join(' ')} \

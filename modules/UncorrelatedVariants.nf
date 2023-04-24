@@ -13,7 +13,7 @@ process GetUncorrelatedVariants {
         echo $'6\t28510120\t33480577\tHLA\n' > hla_range.bed
 
         plink \
-            --bcf ${bcf_file} \
+            --bcf !{bcf_file} \
             --out "corrective_variants"\
             --exclude 'range' hla_range.bed \
             --geno 0.01 \

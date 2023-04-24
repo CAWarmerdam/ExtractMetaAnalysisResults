@@ -12,7 +12,7 @@ process ExtractSignificantResults {
 
     script:
         '''
-        python2 $baseDir/bin/extract_parquet_results.py \
+        python3 $baseDir/bin/extract_parquet_results.py \
             --input-file ${input} \
             --genes ${genes.join(' ')} \
             --p-thresh ${p_value} \
@@ -32,7 +32,7 @@ process AnnotateLoci {
 
     script:
         '''
-        python2 $baseDir/bin/annotate_loci.py \
+        python3 $baseDir/bin/annotate_loci.py \
             --input-file ${significantResults} \
             --variant-reference ${variantReference} \
             --gene-ggf ${geneReference} \

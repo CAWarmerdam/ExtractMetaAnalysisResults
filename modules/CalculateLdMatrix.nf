@@ -26,7 +26,7 @@ process CalculateLdMatrix {
 
     script:
         '''
-        python2 $baseDir/bin/ld_calculator.py \
+        python3 $baseDir/bin/ld_calculator.py \
         --permuted ${permuted} \
         --genes ${genes} \
         --loci ${loci.join(" ")} \
