@@ -72,8 +72,13 @@ summary['Script dir']                               = workflow.projectDir
 summary['Config Profile']                           = workflow.profile
 summary['Container Engine']                         = workflow.containerEngine
 if(workflow.containerEngine) summary['Container']   = workflow.container
-summary['Input directory']                          = params.inputfolder
-summary['Output file']                              = params.outputfile
+summary['Empirical eQTLs']                          = params.empirical
+summary['Permuted eQTLs']                           = params.permuted
+summary['Reference data']                           = params.reference_data
+summary['Genome reference']                         = params.genome_reference
+summary['Variant reference']                        = params.variant_reference
+summary['Gene reference']                           = params.gene_reference
+summary['Gene list']                                = params.genes
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
