@@ -273,3 +273,7 @@ def main(argv=None):
     df.to_csv(args.output_file, sep="\t", header=True, index=None)
 
     return 0
+
+
+if __name__ == '__main__':
+    main(sys.exit())

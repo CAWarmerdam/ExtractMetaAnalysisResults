@@ -49,6 +49,8 @@ def main(argv=None):
     # calculate the pairwise correlations between genes
     corr_matrix = matrix.corr()
 
-
-
     return 0
+
+
+if __name__ == '__main__':
+    main(sys.exit())
