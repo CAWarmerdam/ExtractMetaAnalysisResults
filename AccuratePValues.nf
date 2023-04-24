@@ -115,18 +115,18 @@ workflow CALCULATE_LD {
             .collectFile(name: 'merged.prune.in', newLine: true).collect()
 
         // calculate the Z-scores for each parquet file
-        zscore_ch = genes_ch
+        genes_buffered = genes_ch
             .collate(100)
-            .map{ gene_list -> CalculateZScores(permuted_parquet_ch, gene_list, uncorrelated_variants_ch) }
+            .view()
+
+        zscore_ch = CalculateZScores(permuted_parquet_ch, genes_buffered, uncorrelated_variants_ch)
             .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
 
         // Calculate gene gene matrix correlations
         uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch, 0.1)
 
         // Get a collection of chunks for which to calculate LD
-        loci_ch_raw = genes_ch
-            .collate(100)
-            .map{ gene_list -> ExtractSignificantResults(empirical_parquet_ch, gene_list, 0.00000005)}
+        loci_ch_raw = ExtractSignificantResults(empirical_parquet_ch, genes_buffered, 0.00000005)}
             .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
 
         // Add bp data to loci
