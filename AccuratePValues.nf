@@ -117,7 +117,7 @@ workflow CALCULATE_LD {
         // calculate the Z-scores for each parquet file
         zscore_ch = genes_ch
             .collate(100)
-            .map{ gene_list -> CalculateZScore(permuted_parquet_ch, gene_list, uncorrelated_variants_ch) }
+            .map{ gene_list -> CalculateZScores(permuted_parquet_ch, gene_list, uncorrelated_variants_ch) }
             .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
 
         // Calculate gene gene matrix correlations
@@ -126,7 +126,7 @@ workflow CALCULATE_LD {
         // Get a collection of chunks for which to calculate LD
         loci_ch_raw = genes_ch
             .collate(100)
-            .map{ gene_list -> CollectSignificantLoci(empirical_parquet_ch, gene_list)}
+            .map{ gene_list -> ExtractSignificantResults(empirical_parquet_ch, gene_list, 0.00000005)}
             .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
 
         // Add bp data to loci
