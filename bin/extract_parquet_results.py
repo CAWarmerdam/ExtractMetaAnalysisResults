@@ -218,6 +218,8 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
+    print(args)
+
     variant_reference = (
         pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
         .drop(["allele1", "allele2"])
