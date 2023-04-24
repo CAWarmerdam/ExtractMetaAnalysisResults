@@ -4,7 +4,7 @@
 process ExtractSignificantResults {
     input:
         path eqtls
-        path genes
+        val genes
         val p_value
 
     output:

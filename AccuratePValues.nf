@@ -117,7 +117,6 @@ workflow CALCULATE_LD {
         // calculate the Z-scores for each parquet file
         genes_buffered = genes_ch
             .collate(100)
-            .view()
 
         zscore_ch = CalculateZScores(permuted_parquet_ch, genes_buffered, uncorrelated_variants_ch)
             .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
