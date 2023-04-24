@@ -18,6 +18,7 @@ process UncorrelatedGenes {
 process CalculateLdMatrix {
     input:
         path permuted
+        path genes
         val loci
 
     output:
@@ -27,6 +28,7 @@ process CalculateLdMatrix {
         '''
         python2 $baseDir/bin/ld_calculator.py \
         --permuted ${permuted} \
+        --genes ${genes} \
         --loci ${loci.join(" ")} \
         --out "ld.txt"
         '''
