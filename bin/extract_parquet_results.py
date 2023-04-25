@@ -154,7 +154,7 @@ class QtlResultProcessor:
         print("Added columns. Table now has {} columns".format(self._df.shape[1]))
 
         if cols is not None and len(cols) > 0:
-            out = self._df.loc[:, ["variant", "phenotype"].extend(cols)]
+            out = self._df.loc[:, ["variant", "phenotype"].extend(list(cols))]
         elif drop is not None and len(drop) > 0:
             out = self._df.drop(drop, axis=1)
         else:
