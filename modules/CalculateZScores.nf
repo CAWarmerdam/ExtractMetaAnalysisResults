@@ -17,9 +17,9 @@ process CalculateZScores {
         python3 $baseDir/bin/extract_parquet_results.py \
             --input-file ${input} \
             --genes ${genes.join(' ')} \
-            --variants ${variants.join(' ')} \
+            --variants-file ${variants.join(' ')} \
             --variant-reference ${variant_reference} \
             --output-file z_scores.txt \
-            --cols 'z_scores' \
+            --cols '+z_score' \
         """
 }

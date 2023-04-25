@@ -251,7 +251,7 @@ def main(argv=None):
     if args.variants_file is not None:
         print("Using variants file '%s' to filter on variants." % args.variants_file)
         variants_list = (
-            pd.read_csv(args.variants_file, header = None, delimiter = '\t')
+            pd.read_csv(args.variants_file, header=None, delimiter='\t')
             .iloc[:,0].tolist())
     if args.variants is not None:
         print("Provided %d variants for filtering." % len(args.variants))
