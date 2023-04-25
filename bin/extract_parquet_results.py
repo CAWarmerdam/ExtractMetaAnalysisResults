@@ -86,7 +86,7 @@ class QtlLocusVariantFilter:
 
     def get_filters(self):
         # Return a list, with in each list a chromosome filter, and a
-        return [self._chromosome_filter, self._variant_filter]
+        return [self._chromosome_filter.get_filter(), self._variant_filter.get_filter()]
 
 
 class QtlPThresholdFilter(QtlFilter):
@@ -195,7 +195,7 @@ class QtlResultProcessor:
     def get_filters(self):
         base_filter_list = [self.gene_filter.get_filter()]
         if self.variant_filters is not None:
-            filter_list = [base_filter_list.extend(var_filter.get_filters()) for var_filter in self.variant_filters]
+            filter_list = [base_filter_list + var_filter.get_filters() for var_filter in self.variant_filters]
         else:
             filter_list = [base_filter_list]
         return filter_list
@@ -222,13 +222,13 @@ def main(argv=None):
                         default = None)
     parser.add_argument('-g', '--genes', required = False, default = None, nargs = '+',
                         help = """Individual phenotype IDs specified and separated by space.""")
-    parser.add_argument('-G', '--genes-file', required = False, default = None, type = argparse.FileType('r'),
+    parser.add_argument('-G', '--genes-file', required = False, default = None,
                         help = """File with the list of phenotypes to include.""")
     parser.add_argument('-v', '--variants', required = False, default = None, nargs = '+',
                         help = """Individual SNP IDs specified and separated by space.""")
-    parser.add_argument('-V', '--variants-file', required = False, default = None, type = argparse.FileType('r'),
+    parser.add_argument('-V', '--variants-file', required = False, default = None,
                         help = """File with the list of SNPs/variants to include.""")
-    parser.add_argument('-r', '--variant-reference', required = False, type = argparse.FileType('r'),
+    parser.add_argument('-r', '--variant-reference', required = False,
                         help = "Reference for variants. Has to be gzipped and space-delimited.")
     parser.add_argument('-c', '--cols', required = False, default = None,
                         help = """Extract only z-scores""")
@@ -243,9 +243,10 @@ def main(argv=None):
 
     if args.variant_reference is not None:
         variant_reference = (
-            pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
-            .drop(["allele1", "allele2"])
-            .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}))
+            pd.read_csv(args.variant_reference, sep = ' ')
+            .drop(["allele1", "allele2"], axis=1)
+            .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}, axis=1))
+        print(variant_reference.head())
 
     if args.variants_file is not None:
         print("Using variants file '%s' to filter on variants." % args.variants_file)
@@ -261,7 +262,7 @@ def main(argv=None):
     if variants_list is not None:
         if variant_reference is None:
             parser.error("Cannot subset on variants without variant reference")
-        variant_selection = variant_reference.loc[variant_reference.variant.isin(variants_list), :]
+        variant_selection = variant_reference.loc[variant_reference.loc[:, "variant"].isin(variants_list), :]
         variant_dictionary = variant_selection.groupby('chromosome')['variant'].apply(list).to_dict()
         variant_filters = [QtlLocusVariantFilter(chromosome, variants) for chromosome, variants in variant_dictionary.items()]
 
@@ -300,7 +301,8 @@ def main(argv=None):
             result_processor = QtlResultProcessor(
                 args.input_file, qtl_single_gene_filter)
             result_processor.variant_filters = variant_filters
-            result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
+            if args.p_thresh is not None:
+                result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
 
             df = result_processor.extract(
                 cols=column_specifications[""],

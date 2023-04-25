@@ -4,7 +4,7 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=2G
-#SBATCH --job-name="GenerateDatabase"
+#SBATCH --job-name="LdPipeline"
 
 # Here load needed system tools (Java 1.8 is strictly required, one of two: singularity or conda for python 2.7 are needed,
 # depending on the method which is used for dependency management)
@@ -35,7 +35,7 @@ NXF_VER=21.10.6 ${nextflow_path}/nextflow run AccuratePValues.nf -entry 'CALCULA
 --empirical ${empirical}/eqtls \
 --permuted ${permuted}/eqtls \
 --reference_data ${reference_data} \
---genes ${empirical}/phenotypes_unique.txt \
+--genes phenotypes.txt \
 --genome_reference ${genome_reference} \
 --variant_reference ${variant_reference} \
 --gene_reference ${gene_reference} \
