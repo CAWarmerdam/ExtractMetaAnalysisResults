@@ -137,10 +137,13 @@ class QtlResultProcessor:
             filters=filters)
 
         self._df = dataset.read().to_pandas()
+        print(self._df.head())
 
         if self.significance_filter is not None:
             self._df = self._df.loc[self.significance_filter.apply(self.p_value())]
             self._p_value = self._p_value.loc[self.significance_filter.apply(self.p_value())]
+
+        print(self._df.head())
 
         cols_to_add = (
             cols.union(add)
@@ -148,8 +151,10 @@ class QtlResultProcessor:
 
         self.include_cols(cols_to_add)
 
+        print(self._df.head())
+
         if cols is not None and len(cols) > 0:
-            out = self._df[:,["variant", "phenotype"].extend(cols)]
+            out = self._df[:, ["variant", "phenotype"].extend(cols)]
         elif drop is not None and len(drop) > 0:
             out = self._df.drop(drop, axis=1)
         else:
@@ -297,6 +302,7 @@ def main(argv=None):
                 cols=column_specifications[""],
                 drop=column_specifications["-"],
                 add=column_specifications["+"])
+            print(df.head())
             df.to_csv(f, sep="\t", header=first, index=None)
 
             first = False
