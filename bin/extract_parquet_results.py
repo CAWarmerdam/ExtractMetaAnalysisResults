@@ -271,22 +271,32 @@ def main(argv=None):
                 .format(column_specification))
         column_specifications[regex_match.group(1)].add(regex_match.group(2))
 
-    for gene in qtl_gene_filter.get_values():
+    print(column_specifications)
 
-        qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+    first = True
 
-        result_processor = QtlResultProcessor(
-            args.input_file, qtl_single_gene_filter)
-        result_processor.variant_filters = variant_filters
-        result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
+    with open(args.output_file, 'w') as f:
 
-        print(column_specifications)
+        for gene in qtl_gene_filter.get_values():
+            print("Gene {}".format(gene))
 
-        df = result_processor.extract(
-            cols=column_specifications[""],
-            drop=column_specifications["-"],
-            add=column_specifications["+"])
-        df.to_csv(args.output_file, sep="\t", header=True, index=None)
+            qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+
+            result_processor = QtlResultProcessor(
+                args.input_file, qtl_single_gene_filter)
+            result_processor.variant_filters = variant_filters
+            result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
+
+            df = result_processor.extract(
+                cols=column_specifications[""],
+                drop=column_specifications["-"],
+                add=column_specifications["+"])
+            df.to_csv(f, sep="\t", header=first, index=None)
+
+            first = False
+
+        print("Done!")
+        print("Closing output file '{}'".format(args.output_file))
 
     return 0
 

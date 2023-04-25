@@ -17,7 +17,8 @@ process ExtractSignificantResults {
             --input-file ${eqtls} \
             --genes ${gene_arg} \
             --p-thresh ${p_value} \
-            --output-file z_scores.txt
+            --cols "" \
+            --output-file loci.txt
         """
 }
 
