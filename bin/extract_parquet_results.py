@@ -136,7 +136,7 @@ class QtlResultProcessor:
 
         cols_to_add = (
             cols.union(add)
-            .intersect(self.column_mapping.keys()))
+            .intersection(self.column_mapping.keys()))
 
         self.include_cols(cols_to_add)
 
@@ -211,21 +211,23 @@ def main(argv=None):
                         help = """Individual SNP IDs specified and separated by space.""")
     parser.add_argument('-V', '--variants-file', required = False, default = None, type = argparse.FileType('r'),
                         help = """File with the list of SNPs/variants to include.""")
-    parser.add_argument('-r', '--variant-reference', required = True, type = argparse.FileType('r'),
+    parser.add_argument('-r', '--variant-reference', required = False, type = argparse.FileType('r'),
                         help = "Reference for variants. Has to be gzipped and space-delimited.")
     parser.add_argument('-c', '--cols', required = False, default = "+z_scores,+p_value",
                         help = """Extract only z-scores""")
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
 
     print(args)
 
-    variant_reference = (
-        pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
-        .drop(["allele1", "allele2"])
-        .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}))
+    if args.variant_reference is not None:
+        variant_reference = (
+            pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
+            .drop(["allele1", "allele2"])
+            .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}))
 
     variants_list = None
+    variant_filters = None
 
     if args.variants_file is not None:
         print("Using variants file '%s' to filter on variants." % args.variants_file)
@@ -238,9 +240,10 @@ def main(argv=None):
             print("Variant filter already defined. Skipping...")
         variants_list = args.variants
 
-    variant_selection = variant_reference.loc[variant_reference.variant.isin(variants_list), :]
-    variant_dictionary = variant_selection.groupby('chromosome')['variant'].apply(list).to_dict()
-    variant_filters = [QtlLocusVariantFilter(chromosome, variants) for chromosome, variants in variant_dictionary.items()]
+    if variants_list is not None:
+        variant_selection = variant_reference.loc[variant_reference.variant.isin(variants_list), :]
+        variant_dictionary = variant_selection.groupby('chromosome')['variant'].apply(list).to_dict()
+        variant_filters = [QtlLocusVariantFilter(chromosome, variants) for chromosome, variants in variant_dictionary.items()]
 
     qtl_gene_filter = None
 
@@ -254,10 +257,9 @@ def main(argv=None):
         qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
 
     result_processor = QtlResultProcessor(
-        args.input_file,
-        QtlGeneFilter.from_path(args.genes))
+        args.input_file, qtl_gene_filter)
     result_processor.variant_filters = variant_filters
-    result_processor.significance_filter = QtlPThresholdFilter(args.p_thres)
+    result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
 
     column_specifications = {"-": set(), "+": set(), "": set()}
     for column_specification in args.cols.split(","):
@@ -266,7 +268,9 @@ def main(argv=None):
             parser.error(
                 "Column specification {} did not match expected pattern"
                 .format(column_specification))
-        column_specifications[regex_match.group(1)].put(regex_match.group(2))
+        column_specifications[regex_match.group(1)].add(regex_match.group(2))
+
+    print(column_specifications)
 
     df = result_processor.extract(
         cols=column_specifications[""],
@@ -278,4 +282,4 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    main(sys.exit())
+    sys.exit(main())
