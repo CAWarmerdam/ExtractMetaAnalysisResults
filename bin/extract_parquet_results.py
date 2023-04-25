@@ -153,8 +153,6 @@ class QtlResultProcessor:
 
         self.include_cols(cols_to_add)
 
-        print(self._df.head())
-
         print("Added columns. Table now has {} columns".format(self._df.shape[1]))
 
         if cols is not None and len(cols) > 0:
@@ -308,9 +306,6 @@ def main(argv=None):
                 cols=column_specifications[""],
                 drop=column_specifications["-"],
                 add=column_specifications["+"])
-            print("out:")
-            print(df.shape)
-            print(df.head())
             df.to_csv(f, sep="\t", header=first, index=None)
 
             first = False
