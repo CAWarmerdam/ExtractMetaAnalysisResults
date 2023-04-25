@@ -30,9 +30,14 @@ def maximum_independent_set(matrix):
     return independent_vertices
 
 
-def find_uncorr_genes(corr_matrix, threshold):
+def find_uncorr_genes(r_squared_matrix, threshold):
     # Binarise the correlation matrix
-    return maximum_independent_set(corr_matrix.abs() >= threshold)
+    matrix_threshold = pd.DataFrame(
+        (r_squared_matrix >= threshold),
+        index=r_squared_matrix.index,
+        columns=r_squared_matrix.columns)
+    print(matrix_threshold)
+    return maximum_independent_set(matrix_threshold)
 
 
 def main(argv=None):
@@ -58,11 +63,11 @@ def main(argv=None):
 
     # calculate the pairwise correlations between genes
     corr_matrix = matrix.corr()
-    
+
     print(corr_matrix)
-    
+
     r_squared_matrix = corr_matrix.pow(2)
-    
+
     print(r_squared_matrix)
 
     uncorrelated_genes = find_uncorr_genes(r_squared_matrix, args.threshold)
