@@ -118,7 +118,7 @@ workflow CALCULATE_LD {
         genes_buffered = genes_ch
             .collate(50)
 
-        zscore_ch = CalculateZScores(permuted_parquet_ch, genes_buffered, uncorrelated_variants_ch)
+        zscore_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered, uncorrelated_variants_ch)
             .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
 
         // Calculate gene gene matrix correlations

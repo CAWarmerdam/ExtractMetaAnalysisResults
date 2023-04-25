@@ -5,6 +5,7 @@ process CalculateZScores {
 
     input:
         path input
+        path variant_reference
         val genes
         val variants
 
@@ -17,6 +18,7 @@ process CalculateZScores {
             --input-file ${input} \
             --genes ${genes.join(' ')} \
             --variants ${variants.join(' ')} \
+            --variant-reference ${variant_reference} \
             --output-file z_scores.txt \
             --cols 'z_scores' \
         """
