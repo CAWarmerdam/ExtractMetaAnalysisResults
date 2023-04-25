@@ -26,10 +26,12 @@ process CalculateLdMatrix {
 
     script:
         """
-        python3 $baseDir/bin/ld_calculator.py \
+        loci > "loci.txt"
+
+        ld_calculator.py \
         --permuted ${permuted} \
         --genes ${genes} \
-        --loci ${loci.join(" ")} \
+        --loci loci.txt \
         --out "ld.txt"
         """
 }

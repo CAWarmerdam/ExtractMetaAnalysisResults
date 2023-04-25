@@ -1,17 +1,13 @@
 #!/usr/bin/env python2
 
 import argparse
-import re
 import sys
-from abc import ABCMeta, abstractmethod
 
-import numpy as np
 import pandas as pd
 import pyarrow as pa
-import pyarrow.parquet as pq
-from scipy import stats
 
-from bin.extract_parquet_results import QtlResultProcessor, QtlGeneFilter, QtlVariantFilter, QtlPThresholdFilter
+from bin.extract_parquet_results import QtlResultProcessor, QtlGeneFilter, \
+    QtlLocusVariantFilter
 
 SCHEMA = pa.schema([("variant", pa.string()), ("beta", pa.float64()),
                     ("standard_error", pa.float64()), ("i_squared", pa.float64()),
@@ -30,6 +26,8 @@ def main(argv=None):
     parser.add_argument('-o', '--output-prefix', type = str,
                         required = True,
                         help = "Output prefix which to use for writing LD data.")
+    parser.add_argument('-g', '--genes', required=False, default=None, nargs = '+',
+                        help = """Individual phenotype IDs specified and separated by space.""")
     parser.add_argument('-r', '--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
     parser.add_argument('-l', '--loci', required = True, default = None,
@@ -37,17 +35,44 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    result_processor = QtlResultProcessor(
-        args.input_file)
+    variant_reference = (
+        pd.read_csv(args.variant_reference, sep = ' ')
+        .drop(["allele1", "allele2"], axis=1)
+        .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}, axis=1))
 
-    # Get dataframe with z-scores
-    df = result_processor.extract(cols="z-score")
+    qtl_gene_filter = None
 
-    # pivot the DataFrame to get a matrix of z-scores
-    matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
+    if args.genes is not None:
+        print("Provided %d genes for filtering." % len(args.genes))
+        qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
 
-    # calculate the pairwise correlations between genes
-    corr_matrix = matrix.corr()
+    loci = pd.read_csv(args.loci, sep=" ", header=None, names=["chromosome", "start", "stop", "name"])
+    for index, row in loci.iterrows():
+
+        locus = row["name"]
+        chromosome = row["chromosome"]
+        start = row["start"]
+        stop = row["stop"]
+
+        locus_filter = QtlLocusVariantFilter.from_locus(
+            chromosome, start, stop, variant_reference)
+
+        result_processor = QtlResultProcessor(
+            args.input_file, gene_filter=qtl_gene_filter)
+        result_processor.variant_filters = [locus_filter]
+
+        # Get dataframe with z-scores
+        df = result_processor.extract(cols="z_score")
+
+        # pivot the DataFrame to get a matrix of z-scores
+        matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
+
+        # calculate the pairwise correlations between variants
+        corr_matrix = matrix.corr()
+
+        # write the list of uncorrelated genes to a file
+        corr_matrix.to_csv("{prefix}.{chrom}_{start}-{stop}_{name}".format(
+            prefix=args.output_prefix, chrom=chromosome, start=start, stop=stop, name=locus))
 
     return 0
 

@@ -61,7 +61,6 @@ class QtlVariantFilter(QtlSetFilter):
     def __init__(self, variants):
         super().__init__(variants)
 
-
 class QtlGeneFilter(QtlSetFilter):
     _field_name = "phenotype"
     def __init__(self, genes):
@@ -87,6 +86,13 @@ class QtlLocusVariantFilter:
     def get_filters(self):
         # Return a list, with in each list a chromosome filter, and a
         return [self._chromosome_filter.get_filter(), self._variant_filter.get_filter()]
+
+    @classmethod
+    def from_locus(cls, chromosome, start, stop, variant_reference):
+        chromosome_reference = variant_reference.loc[variant_reference["chromosome"] == chromosome, :]
+        variants = chromosome_reference.loc[
+            (chromosome_reference["bp"] >= start & chromosome_reference["bp"] <= stop), "variant"]
+        return cls(chromosome, variants)
 
 
 class QtlPThresholdFilter(QtlFilter):
