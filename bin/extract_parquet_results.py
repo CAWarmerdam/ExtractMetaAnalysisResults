@@ -137,13 +137,13 @@ class QtlResultProcessor:
             filters=filters)
 
         self._df = dataset.read().to_pandas()
-        print(self._df.head())
+        print("Queried {} rows".format(self._df.shape[0]))
 
         if self.significance_filter is not None:
             self._df = self._df.loc[self.significance_filter.apply(self.p_value())]
             self._p_value = self._p_value[self.significance_filter.apply(self.p_value())]
 
-        print(self._df.head())
+        print("Filtered to {} rows".format(self._df.shape[0]))
 
         cols_to_add = (
             cols.union(add)
@@ -151,7 +151,7 @@ class QtlResultProcessor:
 
         self.include_cols(cols_to_add)
 
-        print(self._df.head())
+        print("Added columns. Table now has {} columns".format(self._df.shape[1]))
 
         if cols is not None and len(cols) > 0:
             out = self._df[:, ["variant", "phenotype"].extend(cols)]
@@ -302,6 +302,8 @@ def main(argv=None):
                 cols=column_specifications[""],
                 drop=column_specifications["-"],
                 add=column_specifications["+"])
+            print("out:")
+            print(df.shape)
             print(df.head())
             df.to_csv(f, sep="\t", header=first, index=None)
 
