@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Created:      15/04/2023
 Author:       C.A. (Robert) Warmerdam
@@ -87,10 +89,10 @@ def main(argv=None):
 
     variant_reference = (
         pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
-        .drop(["allele1", "allele2", "str_allele1", "str_allele2"])
-        .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant"}))
+        .drop(["allele1", "allele2", "str_allele1", "str_allele2"], axis=1)
+        .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant"}, axis=1))
     gencode_parser = GencodeParser(args.gene_ggf)
-    eqtls = pd.read_csv(args.input_file, compression='gzip', sep = ' ')
+    eqtls = pd.read_csv(args.input_file, sep = ' ')
 
     # Perform method
     eqtls_annotated = (
@@ -100,7 +102,7 @@ def main(argv=None):
 
     # Identify genes that have a cis-effect
     preselection_cis = \
-        eqtls_annotated.loc[(eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome),]
+        eqtls_annotated.loc[(eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome), :]
 
     # Select genes for which we can find a cis-effect
     cis_genes = preselection_cis.loc[np.logical_or(

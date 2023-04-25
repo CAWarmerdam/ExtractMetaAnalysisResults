@@ -17,7 +17,7 @@ process ExtractSignificantResults {
             --input-file ${eqtls} \
             --genes ${gene_arg} \
             --p-thresh ${p_value} \
-            --cols "" \
+            --cols "p_value" \
             --output-file loci.txt
         """
 }
@@ -34,7 +34,7 @@ process AnnotateLoci {
 
     script:
         """
-        python3 $baseDir/bin/annotate_loci.py \
+        annotate_loci.py \
             --input-file ${significantResults} \
             --variant-reference ${variantReference} \
             --gene-ggf ${geneReference} \
