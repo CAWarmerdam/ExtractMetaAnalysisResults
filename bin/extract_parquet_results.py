@@ -216,7 +216,7 @@ def main(argv=None):
                         help = """File with the list of SNPs/variants to include.""")
     parser.add_argument('-r', '--variant-reference', required = False, type = argparse.FileType('r'),
                         help = "Reference for variants. Has to be gzipped and space-delimited.")
-    parser.add_argument('-c', '--cols', required = False, default = "+z_scores,+p_value",
+    parser.add_argument('-c', '--cols', required = False, default = None,
                         help = """Extract only z-scores""")
 
     args = parser.parse_args(argv[1:])
@@ -263,13 +263,14 @@ def main(argv=None):
         qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
 
     column_specifications = {"-": set(), "+": set(), "": set()}
-    for column_specification in args.cols.split(","):
-        regex_match = re.match(r"([+-]?)(\w+)", column_specification)
-        if not regex_match:
-            parser.error(
-                "Column specification {} did not match expected pattern"
-                .format(column_specification))
-        column_specifications[regex_match.group(1)].add(regex_match.group(2))
+    if args.cols is not None and args.cols != "":
+        for column_specification in args.cols.split(","):
+            regex_match = re.match(r"([+-]?)(\w+)", column_specification)
+            if not regex_match:
+                parser.error(
+                    "Column specification {} did not match expected pattern"
+                    .format(column_specification))
+            column_specifications[regex_match.group(1)].add(regex_match.group(2))
 
     print(column_specifications)
 
