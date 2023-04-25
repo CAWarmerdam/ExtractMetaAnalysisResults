@@ -141,7 +141,7 @@ class QtlResultProcessor:
 
         if self.significance_filter is not None:
             self._df = self._df.loc[self.significance_filter.apply(self.p_value())]
-            self._p_value = self._p_value.loc[self.significance_filter.apply(self.p_value())]
+            self._p_value = self._p_value[self.significance_filter.apply(self.p_value())]
 
         print(self._df.head())
 
