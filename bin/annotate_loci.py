@@ -85,7 +85,7 @@ def main(argv=None):
     parser.add_argument('--out-prefix', dest='out_prefix', required=True,
                         help='Prefix to use for output file names')
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
 
     variant_reference = (
         pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')

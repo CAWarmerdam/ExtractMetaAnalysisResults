@@ -11,7 +11,7 @@ process UncorrelatedGenes {
 
     script:
         """
-        python2 $baseDir/bin/uncorrelated_genes.py ${matrix} "uncorrelated_genes.txt" -t 0.1
+        uncorrelated_genes.py ${matrix} "uncorrelated_genes.txt" -t 0.1
         """
 }
 
