@@ -40,6 +40,9 @@ class QtlSetFilter(QtlFilter):
     def _get_value(self):
         return self._values
 
+    def get_values(self):
+        return self._get_value()
+
     @classmethod
     def from_path(cls, path):
         df = pd.read_csv(path, header = None, delimiter = '\t')
@@ -220,14 +223,15 @@ def main(argv=None):
 
     print(args)
 
+    variant_reference = None
+    variants_list = None
+    variant_filters = None
+
     if args.variant_reference is not None:
         variant_reference = (
             pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
             .drop(["allele1", "allele2"])
             .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}))
-
-    variants_list = None
-    variant_filters = None
 
     if args.variants_file is not None:
         print("Using variants file '%s' to filter on variants." % args.variants_file)
@@ -241,6 +245,8 @@ def main(argv=None):
         variants_list = args.variants
 
     if variants_list is not None:
+        if variant_reference is None:
+            parser.error("Cannot subset on variants without variant reference")
         variant_selection = variant_reference.loc[variant_reference.variant.isin(variants_list), :]
         variant_dictionary = variant_selection.groupby('chromosome')['variant'].apply(list).to_dict()
         variant_filters = [QtlLocusVariantFilter(chromosome, variants) for chromosome, variants in variant_dictionary.items()]
@@ -251,15 +257,10 @@ def main(argv=None):
         print("Using variants file '%s' to filter on variants." % args.genes_file)
         qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
     if args.genes is not None:
-        print("Provided %d variants for filtering." % len(args.genes))
+        print("Provided %d genes for filtering." % len(args.genes))
         if qtl_gene_filter is not None:
             print("Variant filter already defined. Skipping...")
         qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
-
-    result_processor = QtlResultProcessor(
-        args.input_file, qtl_gene_filter)
-    result_processor.variant_filters = variant_filters
-    result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
 
     column_specifications = {"-": set(), "+": set(), "": set()}
     for column_specification in args.cols.split(","):
@@ -270,13 +271,22 @@ def main(argv=None):
                 .format(column_specification))
         column_specifications[regex_match.group(1)].add(regex_match.group(2))
 
-    print(column_specifications)
+    for gene in qtl_gene_filter.get_values():
 
-    df = result_processor.extract(
-        cols=column_specifications[""],
-        drop=column_specifications["-"],
-        add=column_specifications["+"])
-    df.to_csv(args.output_file, sep="\t", header=True, index=None)
+        qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+
+        result_processor = QtlResultProcessor(
+            args.input_file, qtl_single_gene_filter)
+        result_processor.variant_filters = variant_filters
+        result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
+
+        print(column_specifications)
+
+        df = result_processor.extract(
+            cols=column_specifications[""],
+            drop=column_specifications["-"],
+            add=column_specifications["+"])
+        df.to_csv(args.output_file, sep="\t", header=True, index=None)
 
     return 0
 
