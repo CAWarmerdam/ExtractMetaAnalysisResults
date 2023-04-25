@@ -149,7 +149,11 @@ class QtlResultProcessor:
             cols.union(add)
             .intersection(self.column_mapping.keys()))
 
+        print("Columns to add: {}".format(cols_to_add))
+
         self.include_cols(cols_to_add)
+
+        print(self._df.head())
 
         print("Added columns. Table now has {} columns".format(self._df.shape[1]))
 
