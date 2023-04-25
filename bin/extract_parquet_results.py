@@ -128,9 +128,13 @@ class QtlResultProcessor:
                 drop=None,
                 add=None):
 
+        filters = self.get_filters()
+
+        print("Using filters: {}".format(filters))
+
         dataset = pq.ParquetDataset(
             self.path, validate_schema=True,
-            filters=self.get_filters())
+            filters=filters)
 
         self._df = dataset.read().to_pandas()
 
