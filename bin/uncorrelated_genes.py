@@ -47,15 +47,25 @@ def main(argv=None):
     args = parser.parse_args()
 
     # read the input file into a pandas DataFrame
-    df = pd.read_csv(args.input_file)
+    df = pd.read_csv(args.input_file, sep="\t")
+
+    print(df)
 
     # pivot the DataFrame to get a matrix of z-scores
-    matrix = df.pivot(index='phenotype', columns='variant', values='z_score')
+    matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
+
+    print(matrix)
 
     # calculate the pairwise correlations between genes
     corr_matrix = matrix.corr()
+    
+    print(corr_matrix)
+    
+    r_squared_matrix = corr_matrix.pow(2)
+    
+    print(r_squared_matrix)
 
-    uncorrelated_genes = find_uncorr_genes(corr_matrix, args.threshold)
+    uncorrelated_genes = find_uncorr_genes(r_squared_matrix, args.threshold)
 
     # write the list of uncorrelated genes to a file
     with open(args.output_file, 'w') as f:
