@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import argparse
 import sys
@@ -6,7 +6,7 @@ import sys
 import pandas as pd
 import pyarrow as pa
 
-from bin.extract_parquet_results import QtlResultProcessor, QtlGeneFilter, \
+from extract_parquet_results import QtlResultProcessor, QtlGeneFilter, \
     QtlLocusVariantFilter
 
 SCHEMA = pa.schema([("variant", pa.string()), ("beta", pa.float64()),
@@ -33,7 +33,7 @@ def main(argv=None):
     parser.add_argument('-l', '--loci', required = True, default = None,
                         help = """A bed file that contains one or more loci for which to calculate LD""")
 
-    args = parser.parse_args(argv)
+    args = parser.parse_args(argv[1:])
 
     variant_reference = (
         pd.read_csv(args.variant_reference, sep = ' ')

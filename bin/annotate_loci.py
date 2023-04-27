@@ -24,6 +24,7 @@ root directory of this source tree. If not, see <https://www.gnu.org/licenses/>.
 import os
 import sys
 import argparse
+import gzip
 
 import numpy as np
 import pandas as pd
@@ -52,7 +53,7 @@ class GencodeParser:
 
     def parse(self):
         genes = []
-        with open(self.filename, 'r') as f:
+        with gzip.open(self.filename, 'rt') as f:
             for line in f:
                 if not line.startswith('#'):
                     fields = line.strip().split('\t')
@@ -62,7 +63,9 @@ class GencodeParser:
                                       'chromosome': fields[0],
                                       'start': int(fields[3]),
                                       'end': int(fields[4])})
-        df = pd.DataFrame(genes)
+        df = pd.DataFrame(genes).astype({'start': 'Int64', 'end': 'Int64'})
+        df['chromosome'] = df['chromosome'].str.lstrip('chr').replace({"M": "25", "X": "23", "Y": "24"}).astype('Int64')
+        print(df['chromosome'].unique())
         return df[['gene_id', 'chromosome', 'start', 'end']]
 
 
@@ -86,36 +89,53 @@ def main(argv=None):
                         help='Prefix to use for output file names')
 
     args = parser.parse_args(argv[1:])
+    print(args)
 
     variant_reference = (
-        pd.read_csv(args.variant_reference, compression = 'gzip', sep = ' ')
+        pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
         .drop(["allele1", "allele2", "str_allele1", "str_allele2"], axis=1)
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant"}, axis=1))
+    print(variant_reference)
     gencode_parser = GencodeParser(args.gene_ggf)
-    eqtls = pd.read_csv(args.input_file, sep = ' ')
+    gene_dataframe = gencode_parser.df
+    gene_dataframe['gene_id'] = gene_dataframe['gene_id'].str.split('.').str[0]
+    print(gene_dataframe)
+    print(gene_dataframe.dtypes)
+    eqtls = pd.read_csv(args.input_file, sep = '\t')
+    print(eqtls)
+    print(eqtls.dtypes)
 
     # Perform method
     eqtls_annotated = (
         eqtls
         .merge(variant_reference, how="left", on="variant")
-        .merge(gencode_parser.df, how="left", left_on="phenotype", right_on="gene_id"))
+        .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
+
+    print(eqtls_annotated)
+    print(eqtls_annotated.columns)
+    print(eqtls_annotated.dtypes)
 
     # Identify genes that have a cis-effect
     preselection_cis = \
         eqtls_annotated.loc[(eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome), :]
 
+    print("Preselection cis")
+    print(preselection_cis)
+
     # Select genes for which we can find a cis-effect
     cis_genes = preselection_cis.loc[np.logical_or(
-        (preselection_cis.chromosome_bp - preselection_cis.start).abs() < 1*10**6,
-        (preselection_cis.chromosome_bp - preselection_cis.end).abs() < 1*10**6),
-                                     ["chromosome", "start", "end", "phenotype"]].unique()
+        (preselection_cis.bp_variant - preselection_cis.start).abs() < 1*10**6,
+        (preselection_cis.bp_variant - preselection_cis.end).abs() < 1*10**6),
+                                     ["chromosome", "start", "end", "phenotype"]].drop_duplicates()
+
+    print(cis_genes)
 
     # Select all significant variants
     variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "variant"]]
 
     # Output bed files for which to
-    cis_genes.to_csv(".".join([args.out_prefix, "genes.bed"]), sep=' ', header=False, index=False)
-    variants.to_csv(".".join([args.out_prefix, "variants.bed"]), sep=' ', header=False, index=False)
+    cis_genes.to_csv(".".join([args.out_prefix, "genes.bed"]), sep='\t', header=False, index=False)
+    variants.to_csv(".".join([args.out_prefix, "variants.bed"]), sep='\t', header=False, index=False)
 
     # Output
     return 0

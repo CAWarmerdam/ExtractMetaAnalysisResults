@@ -56,10 +56,13 @@ process IntersectLoci {
     script:
         // Calculate flanks for genes, calculate flanks for snps, calculate union.
         """
-        bedtools flank -i "${variantLoci}" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
-        bedtools flank -i "${geneLoci}" -g "${genomeRef}" -b "${geneFlankSize}" > "gene_loci.flank.bed"
+        bedtools slop -i "${variantLoci}" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
+        bedtools slop -i "${geneLoci}" -g "${genomeRef}" -b "${geneFlankSize}" > "gene_loci.flank.bed"
+
+        cat "variant_loci.flank.bed" "gene_loci.flank.bed" > "total.flank.bed"
 
         # Get the union of the two bed files (including flanks)
-        bedtools unionbedg -i "variant_loci.flank.bed" "gene_loci.flank.bed" -d 0 > union.bed
+        bedtools sort -i "total.flank.bed" > "total.flank.sorted.bed"
+        bedtools merge -i "total.flank.sorted.bed" -d 0 > "union.bed"
         """
 }

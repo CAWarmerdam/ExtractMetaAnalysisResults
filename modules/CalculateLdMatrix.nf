@@ -19,19 +19,21 @@ process CalculateLdMatrix {
     input:
         path permuted
         path genes
+        path variantReference
         val loci
 
     output:
-        path "ld.txt"
+        path "ld.*.csv"
 
     script:
         """
-        loci > "loci.txt"
+        echo "${loci}" > "loci.txt"
 
         ld_calculator.py \
-        --permuted ${permuted} \
+        --input-file ${permuted} \
         --genes ${genes} \
         --loci loci.txt \
-        --out "ld.txt"
+        --variant-reference ${variantReference} \
+        --output-prefix "ld"
         """
 }
