@@ -53,7 +53,7 @@ def main(argv=None):
     for index, row in loci.iterrows():
         print(row)
 
-        locus = row["name"].str.split(',')
+        locus = row["name"].split(",")
         print(locus)
         chromosome = row["chromosome"]
         start = row["start"]
