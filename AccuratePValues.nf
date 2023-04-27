@@ -46,6 +46,7 @@ Mandatory arguments:
 }
 
 params.maf_table = ''
+params.clustered_loci = ''
 
 if (params.help){
     helpmessage()
@@ -61,11 +62,11 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
-Channel.fromPath(params.maf_table).set { maf_table_ch }
+//Channel.fromPath(params.maf_table).set { maf_table_ch }
 
-loci_ch = Channel.fromPath(params.clustered_loci)
-    .splitCsv(header: ['chromosome', 'start', 'end', 'gene', 'cluster'], sep: '\t')
-    .groupTuple(by: 'cluster')
+//loci_ch = Channel.fromPath(params.clustered_loci)
+//    .splitCsv(header: ['chromosome', 'start', 'end', 'gene', 'cluster'], sep: '\t')
+//    .groupTuple(by: 'cluster')
 
 variant_flank_size=1000000
 gene_flank_size=1000000

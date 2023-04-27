@@ -26,7 +26,7 @@ def main(argv=None):
     parser.add_argument('-o', '--output-prefix', type = str,
                         required = True,
                         help = "Output prefix which to use for writing LD data.")
-    parser.add_argument('-g', '--genes', required=False, default=None, nargs = '+',
+    parser.add_argument('-g', '--genes', required=False, default=None,
                         help = """Individual phenotype IDs specified and separated by space.""")
     parser.add_argument('-r', '--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
@@ -34,6 +34,7 @@ def main(argv=None):
                         help = """A bed file that contains one or more loci for which to calculate LD""")
 
     args = parser.parse_args(argv[1:])
+    print(args)
 
     variant_reference = (
         pd.read_csv(args.variant_reference, sep = ' ')
