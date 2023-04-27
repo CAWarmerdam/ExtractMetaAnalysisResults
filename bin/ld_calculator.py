@@ -26,8 +26,8 @@ def main(argv=None):
     parser.add_argument('-o', '--output-prefix', type = str,
                         required = True,
                         help = "Output prefix which to use for writing LD data.")
-    parser.add_argument('-g', '--genes', required=False, default=None,
-                        help = """Individual phenotype IDs specified and separated by space.""")
+    parser.add_argument('-G', '--genes-file', required = False, default = None,
+                        help = """File with the list of phenotypes to include.""")
     parser.add_argument('-r', '--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
     parser.add_argument('-l', '--loci', required = True, default = None,
@@ -43,9 +43,9 @@ def main(argv=None):
 
     qtl_gene_filter = None
 
-    if args.genes is not None:
-        print("Provided %d genes for filtering." % len(args.genes))
-        qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
+    if args.genes_file is not None:
+        print("Using variants file '%s' to filter on variants." % args.genes_file)
+        qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
 
     loci = pd.read_csv(args.loci, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
     print(loci)
