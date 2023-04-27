@@ -7,7 +7,7 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { ExtractSignificantResults; AnnotateLoci; IntersectLoci } from './modules/CollectSignificantLoci'
-include { CalculateAccuratePermutationPValues; GetUncorrelatedVariantsWithLdDataset } from './modules/CalculateAccuratePermutationPValues'
+include { GetBreakpoints; CalculateAccuratePermutationPValues } from './modules/CalculateAccuratePermutationPValues'
 include { CalculateLdMatrix; UncorrelatedGenes } from './modules/CalculateLdMatrix'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 include { CalculateZScores } from './modules/CalculateZScores'
@@ -59,6 +59,8 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
+Channel.fromPath(params.maf_table).set { maf_table_ch }
+
 variant_flank_size=1000000
 gene_flank_size=1000000
 
@@ -91,23 +93,18 @@ log.info "======================================================="
 // Get uncorrelated variants per maf bin
 // Using the uncorrelated variants, do accurate permutation p-value calculation
 
-// workflow ACCURATE_P_VALUES {
-//     take:
-//         mafTable
-//         empiricalResults
-//         permutedResults
-//         breakPoints
-//
-//     main:
-//         GetBreakpoints(mafTable.collect())
-//         uncorrelatedVariants = GetUncorrelatedVariants(GetBreakpoints.splitText())
-//         CalculateAccuratePermutationPValues(
-//             empiricalResults, permutedResults,
-//             mafTable, breakpoints, uncorrelatedVariants, breakPoints, uncorrelatedVariants, andersonDarlingTable)
-//
-//     emit:
-//         CalculateAccuratePermutationPValues.out
-// }
+workflow ACCURATE_P_VALUES {
+        // Obtain breakpoints to use for splitting variants
+        breakpoints = GetBreakpoints(maf_table_ch.collect()).splitText()
+
+        // For each of the breakpoints, get the uncorrelated variants
+        uncorrelatedVariants = GetUncorrelatedVariants(breakpoints)
+        CalculateAccuratePermutationPValues(
+            empiricalResults, permutedResults,
+            mafTable, breakpoints, uncorrelatedVariants, breakPoints, uncorrelatedVariants, andersonDarlingTable)
+
+        CalculateAccuratePermutationPValues.out
+}
 
 workflow CALCULATE_LD {
         // Obtain a list of uncorrelated variants
@@ -118,8 +115,11 @@ workflow CALCULATE_LD {
         genes_buffered = genes_ch
             .collate(20)
 
-        zscore_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered, uncorrelated_variants_ch)
-            .collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
+        // Calculate the Z-scores for each gene list in the genes channel
+        z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered, uncorrelated_variants_ch)
+
+        // Combine Z-scores channel into a single file
+        zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
 
         // Calculate gene gene matrix correlations
         uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch, 0.1)

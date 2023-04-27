@@ -16,7 +16,7 @@ process CalculateAccuratePermutationPValues {
 
     script:
     """
-    python2 accurate_pvalues.py \
+    accurate_pvalues.py \
     --ad-test-table ${andersonDarlingTable} \
     --empirical ${empiricalResults} \
     --permuted ${permutationResults} \
@@ -27,17 +27,17 @@ process CalculateAccuratePermutationPValues {
     """
 }
 
-process GetUncorrelatedVariantsWithLdDataset {
+process GetBreakpoints {
 
     input:
-      path ldDataset
+        path maf_table
 
     output:
-      path "uncorrelated.tsv"
+        path "breaks.txt"
 
     script:
     """
-
+    
     """
 
 }

@@ -20,6 +20,6 @@ process CalculateZScores {
             --variants-file ${variants.join(' ')} \
             --variant-reference ${variant_reference} \
             --output-file z_scores.txt \
-            --cols '+z_score' \
+            --cols '+z_score'
         """
 }
