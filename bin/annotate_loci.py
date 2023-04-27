@@ -95,15 +95,10 @@ def main(argv=None):
         pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
         .drop(["allele1", "allele2", "str_allele1", "str_allele2"], axis=1)
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant"}, axis=1))
-    print(variant_reference)
     gencode_parser = GencodeParser(args.gene_ggf)
     gene_dataframe = gencode_parser.df
     gene_dataframe['gene_id'] = gene_dataframe['gene_id'].str.split('.').str[0]
-    print(gene_dataframe)
-    print(gene_dataframe.dtypes)
     eqtls = pd.read_csv(args.input_file, sep = '\t')
-    print(eqtls)
-    print(eqtls.dtypes)
 
     # Perform method
     eqtls_annotated = (
@@ -111,24 +106,15 @@ def main(argv=None):
         .merge(variant_reference, how="left", on="variant")
         .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
 
-    print(eqtls_annotated)
-    print(eqtls_annotated.columns)
-    print(eqtls_annotated.dtypes)
-
     # Identify genes that have a cis-effect
     preselection_cis = \
         eqtls_annotated.loc[(eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome), :]
-
-    print("Preselection cis")
-    print(preselection_cis)
 
     # Select genes for which we can find a cis-effect
     cis_genes = preselection_cis.loc[np.logical_or(
         (preselection_cis.bp_variant - preselection_cis.start).abs() < 1*10**6,
         (preselection_cis.bp_variant - preselection_cis.end).abs() < 1*10**6),
                                      ["chromosome", "start", "end", "phenotype"]].drop_duplicates()
-
-    print(cis_genes)
 
     # Select all significant variants
     variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype"]]
