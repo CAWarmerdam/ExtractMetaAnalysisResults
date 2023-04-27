@@ -67,7 +67,7 @@ def main(argv=None):
         result_processor.variant_filters = [locus_filter]
 
         # Get dataframe with z-scores
-        df = result_processor.extract(cols="z_score")
+        df = result_processor.extract(cols={"z_score",})
 
         # pivot the DataFrame to get a matrix of z-scores
         matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
