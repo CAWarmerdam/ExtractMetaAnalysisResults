@@ -133,6 +133,12 @@ class QtlResultProcessor:
                 cols=None,
                 drop=None,
                 add=None):
+        if add is None:
+            add = set()
+        if drop is None:
+            drop = set()
+        if cols is None:
+            cols = set()
 
         filters = self.get_filters()
 
