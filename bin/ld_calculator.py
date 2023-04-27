@@ -46,8 +46,11 @@ def main(argv=None):
         print("Provided %d genes for filtering." % len(args.genes))
         qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
 
-    loci = pd.read_csv(args.loci, sep=" ", header=None, names=["chromosome", "start", "stop", "name"])
+    loci = pd.read_csv(args.loci, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
+    print(loci)
+
     for index, row in loci.iterrows():
+        print(row)
 
         locus = row["name"].str.split(',')
         print(locus)
