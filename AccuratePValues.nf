@@ -45,6 +45,8 @@ Mandatory arguments:
 
 }
 
+params.maf_table = ''
+
 if (params.help){
     helpmessage()
     exit 0
@@ -59,7 +61,11 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
-//Channel.fromPath(params.maf_table).set { maf_table_ch }
+Channel.fromPath(params.maf_table).set { maf_table_ch }
+
+loci_ch = Channel.fromPath(params.clustered_loci)
+    .splitCsv(header: ['chromosome', 'start', 'end', 'gene', 'cluster'], sep: '\t')
+    .groupTuple(by: 'cluster')
 
 variant_flank_size=1000000
 gene_flank_size=1000000
@@ -93,54 +99,63 @@ log.info "======================================================="
 // Get uncorrelated variants per maf bin
 // Using the uncorrelated variants, do accurate permutation p-value calculation
 
-//workflow ACCURATE_P_VALUES {
-//        // Obtain breakpoints to use for splitting variants
-//        breakpoints = GetBreakpoints(maf_table_ch.collect()).splitText()
-//
-//        // For each of the breakpoints, get the uncorrelated variants
-//        uncorrelatedVariants = GetUncorrelatedVariants(breakpoints)
-//        CalculateAccuratePermutationPValues(
-//            empiricalResults, permutedResults,
-//            mafTable, breakpoints, uncorrelatedVariants, breakPoints, uncorrelatedVariants, andersonDarlingTable)
-//
-//        CalculateAccuratePermutationPValues.out
-//}
+workflow ACCURATE_P_VALUES {
+    // Obtain breakpoints to use for splitting variants
+    breakpoints = GetBreakpoints(maf_table_ch.collect()).splitText()
+
+    // For each of the breakpoints, get the uncorrelated variants
+    uncorrelatedVariants = GetUncorrelatedVariants(breakpoints)
+    CalculateAccuratePermutationPValues(
+        empiricalResults, permutedResults,
+        mafTable, breakpoints, uncorrelatedVariants, breakPoints, uncorrelatedVariants, andersonDarlingTable)
+
+    CalculateAccuratePermutationPValues.out
+}
 
 workflow CALCULATE_LD {
-        // Obtain a list of uncorrelated variants
-        uncorrelated_variants_ch = GetUncorrelatedVariants(reference_bcf_files_ch)
-            .collectFile(name: 'merged.prune.in', newLine: true).collect()
+    // Obtain a list of uncorrelated variants
+    uncorrelated_variants_ch = GetUncorrelatedVariants(reference_bcf_files_ch)
+        .collectFile(name: 'merged.prune.in', newLine: true).collect()
 
-        // calculate the Z-scores for each parquet file
-        genes_buffered = genes_ch
-            .collate(20)
+    // calculate the Z-scores for each parquet file
+    genes_buffered = genes_ch
+        .collate(20)
 
-        // Calculate the Z-scores for each gene list in the genes channel
-        z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered, uncorrelated_variants_ch)
+    // Calculate the Z-scores for each gene list in the genes channel
+    z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered, uncorrelated_variants_ch)
 
-        // Combine Z-scores channel into a single file
-        zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
+    // Combine Z-scores channel into a single file
+    zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
 
-        // Calculate gene gene matrix correlations
-        uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch, 0.1)
+    // Calculate gene gene matrix correlations
+    uncorrelated_genes_ch = UncorrelatedGenes(zscore_ch, 0.1)
 
-        // Get a collection of chunks for which to calculate LD
-        loci_ch_raw = ExtractSignificantResults(empirical_parquet_ch, genes_buffered, 0.00000005)
-            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
+    // Get a collection of chunks for which to calculate LD
+    loci_ch_raw = ExtractSignificantResults(empirical_parquet_ch, genes_buffered, 0.00000005)
+        .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
 
-        // Add bp data to loci
-        loci_annotated = AnnotateLoci(loci_ch_raw, variant_reference_ch, gene_reference_ch)
+    // Add bp data to loci
+    loci_annotated = AnnotateLoci(loci_ch_raw, variant_reference_ch, gene_reference_ch)
 
-        // Flank loci and find the intersect between them
-        loci_ch = IntersectLoci(
-            loci_annotated.variant_loci, variant_flank_size,
-            loci_annotated.gene_loci, gene_flank_size, genome_ref_ch)
-            .splitText( by: 10 )
+    // Flank loci and find the intersect between them
+    loci_ch = IntersectLoci(
+        loci_annotated.variant_loci, variant_flank_size,
+        loci_annotated.gene_loci, gene_flank_size, genome_ref_ch)
+        .splitText( by: 10 )
 
-        // Calculate LD for all loci
-        ld_ch = CalculateLdMatrix(permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch, loci_ch)
+    // Calculate LD for all loci
+    ld_ch = CalculateLdMatrix(permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch, loci_ch)
 
 }
+
+workflow CIS_TRANS_COLOCALIZATION {
+    // For each cluster of overlapping significant loci, extract results from the dataset
+    cluster_result_ch = ExtractClusterResult(empirical_parquet_ch, loci_ch)
+
+    // For each cluster of overlapping significant loci, determine if the genes colocalize
+    hypr_coloc_results = RunHyprColoc(cluster_result_ch, params.posterior_threshold, params.cs_threshold, params.output_cs_pip)
+}
+
 
 workflow.onComplete {
     println ( workflow.success ? "Pipeline finished!" : "Something crashed...debug!" )

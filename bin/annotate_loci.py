@@ -131,7 +131,7 @@ def main(argv=None):
     print(cis_genes)
 
     # Select all significant variants
-    variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "variant"]]
+    variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype"]]
 
     # Output bed files for which to
     cis_genes.to_csv(".".join([args.out_prefix, "genes.bed"]), sep='\t', header=False, index=False)

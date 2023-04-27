@@ -91,7 +91,7 @@ class QtlLocusVariantFilter:
     def from_locus(cls, chromosome, start, stop, variant_reference):
         chromosome_reference = variant_reference.loc[variant_reference["chromosome"] == chromosome, :]
         variants = chromosome_reference.loc[
-            (chromosome_reference["bp"] >= start & chromosome_reference["bp"] <= stop), "variant"]
+            ((chromosome_reference["bp"] >= start) & (chromosome_reference["bp"] <= stop)), "variant"]
         return cls(chromosome, variants)
 
 

@@ -49,7 +49,8 @@ def main(argv=None):
     loci = pd.read_csv(args.loci, sep=" ", header=None, names=["chromosome", "start", "stop", "name"])
     for index, row in loci.iterrows():
 
-        locus = row["name"]
+        locus = row["name"].str.split(',')
+        print(locus)
         chromosome = row["chromosome"]
         start = row["start"]
         stop = row["stop"]
@@ -72,7 +73,7 @@ def main(argv=None):
 
         # write the list of uncorrelated genes to a file
         corr_matrix.to_csv("{prefix}.{chrom}_{start}-{stop}_{name}".format(
-            prefix=args.output_prefix, chrom=chromosome, start=start, stop=stop, name=locus))
+            prefix=args.output_prefix, chrom=chromosome, start=start, stop=stop, name="-".join(locus)))
 
     return 0
 

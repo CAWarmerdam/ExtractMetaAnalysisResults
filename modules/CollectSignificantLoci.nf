@@ -51,7 +51,7 @@ process IntersectLoci {
         path genomeRef
 
     output:
-        path "union.bed"
+        path "merged.bed"
 
     script:
         // Calculate flanks for genes, calculate flanks for snps, calculate union.
@@ -63,6 +63,6 @@ process IntersectLoci {
 
         # Get the union of the two bed files (including flanks)
         bedtools sort -i "total.flank.bed" > "total.flank.sorted.bed"
-        bedtools merge -i "total.flank.sorted.bed" -d 0 > "union.bed"
+        bedtools merge -i "total.flank.sorted.bed" -d 0 -c 4 -o distinct > "merged.bed"
         """
 }
