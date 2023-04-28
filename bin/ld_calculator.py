@@ -70,14 +70,14 @@ def main(argv=None):
         df = result_processor.extract(cols={"z_score",})
 
         # pivot the DataFrame to get a matrix of z-scores
-        matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
+        matrix = df.pivot(index='phenotype', columns='variant', values='z_score')
 
         # calculate the pairwise correlations between variants
         corr_matrix = matrix.corr()
 
         # write the list of uncorrelated genes to a file
-        corr_matrix.to_csv("{prefix}.{chrom}_{start}-{stop}_{name}".format(
-            prefix=args.output_prefix, chrom=chromosome, start=start, stop=stop, name="-".join(locus)))
+        corr_matrix.to_csv("{prefix}.{chrom}_{start}-{stop}.csv".format(
+            prefix=args.output_prefix, chrom=chromosome, start=start, stop=stop))
 
     return 0
 
