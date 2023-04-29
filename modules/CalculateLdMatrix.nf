@@ -2,12 +2,16 @@
 
 
 process UncorrelatedGenes {
+
+    publishDir "${params.output}", mode: 'copy', overwrite: true
+
     input:
         path matrix
         val threshold
 
     output:
-        path "uncorrelated_genes.txt"
+        path "uncorrelated_genes.txt", emit: genes
+        path "gene_correlation_matrix.csv.gz", emit: correlations
 
     script:
         """

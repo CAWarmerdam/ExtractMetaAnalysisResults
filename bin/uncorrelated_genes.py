@@ -64,7 +64,7 @@ def main(argv=None):
     # calculate the pairwise correlations between genes
     corr_matrix = matrix.corr()
 
-    print(corr_matrix)
+    corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
 
     r_squared_matrix = corr_matrix.pow(2)
 
