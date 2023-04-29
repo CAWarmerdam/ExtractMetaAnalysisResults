@@ -20,6 +20,9 @@ process UncorrelatedGenes {
 }
 
 process CalculateLdMatrix {
+
+    publishDir "${params.output}", mode: 'copy', overwrite: true
+
     input:
         path permuted
         path genes
@@ -27,7 +30,7 @@ process CalculateLdMatrix {
         val loci
 
     output:
-        path "ld.*.csv"
+        path "ld.*.csv.gz"
 
     script:
         """
