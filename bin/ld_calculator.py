@@ -76,7 +76,7 @@ def main(argv=None):
         corr_matrix = matrix.corr()
 
         # write the list of uncorrelated genes to a file
-        corr_matrix.to_csv("{prefix}.{chrom}_{start}-{stop}.csv".format(
+        corr_matrix.to_csv("{prefix}.{chrom}_{start}-{stop}.csv.gz".format(
             prefix=args.output_prefix, chrom=chromosome, start=start, stop=stop))
 
     return 0

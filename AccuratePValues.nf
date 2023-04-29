@@ -45,8 +45,9 @@ Mandatory arguments:
 
 }
 
-params.maf_table = ''
-params.clustered_loci = ''
+params.maf_table = 'NO_FILE'
+params.clustered_loci = 'NO_FILE'
+params.background_bed = 'NO_FILE'
 
 if (params.help){
     helpmessage()
@@ -61,6 +62,8 @@ Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.ge
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
+
+bed_file = file(params.background_bed)
 
 //Channel.fromPath(params.maf_table).set { maf_table_ch }
 
@@ -141,7 +144,7 @@ workflow CALCULATE_LD {
     // Flank loci and find the intersect between them
     loci_ch = IntersectLoci(
         loci_annotated.variant_loci, variant_flank_size,
-        loci_annotated.gene_loci, gene_flank_size, genome_ref_ch)
+        loci_annotated.gene_loci, gene_flank_size, bed_file, genome_ref_ch)
         .splitText( by: 10 )
 
     // Calculate LD for all loci
