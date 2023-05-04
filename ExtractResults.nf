@@ -63,7 +63,6 @@ Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.ge
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
-Channel.fromPath(params.inclusion_output).collect().set { inclusion_output_ch }
 
 bed_file = file(params.background_bed)
 
