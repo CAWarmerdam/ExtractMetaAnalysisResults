@@ -72,8 +72,8 @@ Channel.fromPath(params.maf_table).set { maf_table_ch }
 variant_flank_size=250000
 gene_flank_size=250000
 
-gene_chunk_size=20
-locus_chunks_size=10
+gene_chunk_size=200
+locus_chunks_size=100
 
 enable_ld_calculation = true
 enable_extract_loci = false
@@ -109,24 +109,24 @@ log.info "======================================================="
 // Using the uncorrelated variants, do accurate permutation p-value calculation
 
 
-workflow ACCURATE_P_VALUES {
-    // Obtain breakpoints to use for splitting variants
-    breakpoints = GetBreakpoints(maf_table_ch.collect()).splitText()
-
-    // For each of the breakpoints, get the uncorrelated variants
-    uncorrelatedVariants = GetUncorrelatedVariants(breakpoints)
-    CalculateAccuratePermutationPValues(
-        empiricalResults, permutedResults,
-        mafTable, breakpoints, uncorrelatedVariants, breakPoints, uncorrelatedVariants, andersonDarlingTable)
-
-    CalculateAccuratePermutationPValues.out
-}
+//workflow ACCURATE_P_VALUES {
+//    // Obtain breakpoints to use for splitting variants
+//    breakpoints = GetBreakpoints(maf_table_ch.collect()).splitText()
+//
+//    // For each of the breakpoints, get the uncorrelated variants
+//    uncorrelatedVariants = GetUncorrelatedVariants(breakpoints)
+//    CalculateAccuratePermutationPValues(
+//        empiricalResults, permutedResults,
+//        mafTable, breakpoints, uncorrelatedVariants, breakPoints, uncorrelatedVariants, andersonDarlingTable)
+//
+//    CalculateAccuratePermutationPValues.out
+//}
 
 workflow GENE_CORRELATIONS {
     take:
         reference_bcf_files_ch
-        permuted_parquet_ch,
-        variant_reference_ch,
+        permuted_parquet_ch
+        variant_reference_ch
         genes_buffered_ch
 
     main:
