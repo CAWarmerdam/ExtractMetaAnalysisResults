@@ -171,7 +171,8 @@ workflow LOCI {
             loci_bed_files.gene_loci, gene_flank_size, bed_file, genome_ref_ch)
     emit:
         loci = loci_ch
-        loci_bed_files = loci_bed_files
+        variant_loci = loci_bed_files.variant_loci
+        gene_loci = loci_bed_files.gene_loci
 }
 
 workflow CALCULATE_LD {
@@ -197,7 +198,8 @@ workflow COLLECT_LOCI {
         empirical_parquet_ch
         genes_buffered_ch
         maf_table_ch
-        loci_bed_files
+        variant_loci
+        gene_loci
         variant_flank_size
         gene_flank_size
         bed_file_ch
@@ -210,8 +212,8 @@ workflow COLLECT_LOCI {
         // 1. There is a cis genes involved
         // 2. There is a locus involved from the supplementary bed file
         loci_ch_pruned = FollowUpLoci(
-            loci_bed_files.variant_loci, variant_flank_size,
-            loci_bed_files.gene_loci, gene_flank_size, bed_file_ch, genome_ref_ch)
+            variant_loci, variant_flank_size,
+            gene_loci, gene_flank_size, bed_file_ch, genome_ref_ch)
 
         // Extract empirical results for all significant loci
         loci_extracted_ch = ExtractLoci(empirical_parquet_ch, loci_ch_pruned, genes_buffered_ch)
@@ -256,7 +258,7 @@ workflow {
     }
 
     if ( enable_extract_loci ) {
-        COLLECT_LOCI( empirical_parquet_ch,maf_table_ch,LOCI.loci_bed_files,variant_flank_size,gene_flank_size,bed_file_ch,genome_ref_ch,locus_chunk_size )
+        COLLECT_LOCI( empirical_parquet_ch,maf_table_ch,LOCI.variant_loci,LOCI.gene_loci,variant_flank_size,gene_flank_size,bed_file_ch,genome_ref_ch,locus_chunk_size )
     }
 
     if ( enable_cis_trans_coloc ) {
