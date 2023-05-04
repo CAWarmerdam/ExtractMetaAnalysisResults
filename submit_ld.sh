@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --time=1:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=2G
@@ -29,15 +29,19 @@ genome_reference="hg38.genome"
 variant_reference="/gpfs/space/GI/eQTLGen/freeze1/eqtl_mapping/MetaAnalysis/bin/hase/data/1000G-30x.ref.gz"
 gene_reference="gencode.v43.basic.annotation.gff3.gz"
 
-output_folder=/gpfs/space/GI/eQTLGen/hase_output_testing/output/t
+bed="../data/vuckovic_flanked1mb_significant_loci_5mlog9_hg38.bed"
+
+output_folder="/gpfs/space/GI/eQTLGen/freeze1/Interpretation/ld/output"
 
 NXF_VER=21.10.6 ${nextflow_path}/nextflow run AccuratePValues.nf -entry 'CALCULATE_LD' \
 --empirical ${empirical}/eqtls \
 --permuted ${permuted}/eqtls \
 --reference_data ${reference_data} \
---genes phenotypes.txt \
+--genes ${permuted}/phenotypes_unique.txt \
 --genome_reference ${genome_reference} \
 --variant_reference ${variant_reference} \
 --gene_reference ${gene_reference} \
+--background_bed ${bed} \
+--output ${output_folder} \
 -resume \
 -profile slurm,singularity

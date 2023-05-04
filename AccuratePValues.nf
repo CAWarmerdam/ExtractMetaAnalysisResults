@@ -125,7 +125,7 @@ workflow CALCULATE_LD {
 
     // calculate the Z-scores for each parquet file
     genes_buffered = genes_ch
-        .collate(params.gene_chunk_size)
+        .collate(200)
 
     // Calculate the Z-scores for each gene list in the genes channel
     z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered, uncorrelated_variants_ch)
@@ -147,7 +147,7 @@ workflow CALCULATE_LD {
     loci_ch = IntersectLoci(
         loci_annotated.variant_loci, variant_flank_size,
         loci_annotated.gene_loci, gene_flank_size, bed_file, genome_ref_ch)
-        .splitText( by: params.locus_chunk_size )
+        .splitText( by: 10 )
 
     // Calculate LD for all loci
     ld_ch = CalculateLdMatrix(permuted_parquet_ch, uncorrelated_genes_out.genes, variant_reference_ch, loci_ch)

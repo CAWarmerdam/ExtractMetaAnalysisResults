@@ -1,25 +1,36 @@
 #!/bin/bash nextflow
 
 process ExtractSignificantResults {
+    scratch true
+
     input:
-        path eqtls
+        path input
         val genes
         val p_value
 
     output:
         path "loci.txt"
 
-    script:
+    shell:
         gene_arg = genes.join(" ")
 
-        """
+        phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
+
+        '''
+        mkdir tmp_eqtls
+        echo "!{phenotypes_formatted}" > file_matches.txt
+
+        while read gene; do
+          cp -r "!{input}/${gene}" tmp_eqtls/
+        done <file_matches.txt
+
         extract_parquet_results.py \
-            --input-file ${eqtls} \
-            --genes ${gene_arg} \
-            --p-thresh ${p_value} \
+            --input-file tmp_eqtls \
+            --genes !{gene_arg} \
+            --p-thresh !{p_value} \
             --cols "p_value" \
             --output-file loci.txt
-        """
+        '''
 }
 
 process AnnotateLoci {

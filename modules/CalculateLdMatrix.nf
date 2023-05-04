@@ -15,6 +15,7 @@ process UncorrelatedGenes {
 
     script:
         """
+        export PYTHONUNBUFFERED="1"
         uncorrelated_genes.py ${matrix} "uncorrelated_genes.txt" -t 0.1
         """
 }
@@ -32,8 +33,8 @@ process CalculateLdMatrix {
     output:
         path "ld.*.csv.gz"
 
-    script:
-        """
+    shell:
+        '''
         echo "${loci}" > "loci.txt"
 
         ld_calculator.py \
@@ -42,5 +43,5 @@ process CalculateLdMatrix {
         --loci loci.txt \
         --variant-reference ${variantReference} \
         --output-prefix "ld"
-        """
+        '''
 }

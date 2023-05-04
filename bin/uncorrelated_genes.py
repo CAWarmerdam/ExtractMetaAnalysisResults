@@ -20,12 +20,14 @@ def maximum_independent_set(matrix):
     while not matrix.empty:
         # Find the vertex with the least amount of edges
         least_connected = matrix.sum(axis=1).idxmin()
+        print(least_connected)
 
         # Add the least connected vertex to the independent set
         independent_vertices.add(least_connected)
 
         # Remove all vertices that have an edge with the least connected vertex
         matrix = matrix.loc[matrix[least_connected] == 0, matrix[least_connected] == 0]
+        print(matrix.shape)
 
     return independent_vertices
 
