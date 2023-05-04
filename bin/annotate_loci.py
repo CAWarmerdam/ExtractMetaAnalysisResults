@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 
 # Metadata
-__program__ = "CNV-caller"
+__program__ = "Annotate Loci"
 __author__ = "C.A. (Robert) Warmerdam"
 __email__ = "c.a.warmerdam@umcg.nl"
 __license__ = "GPLv3"
@@ -46,6 +46,80 @@ __description__ = "{} is a program developed and maintained by {}. " \
 # Constants
 
 # Classes
+class MafCalculator:
+    def __init__(self, inclusion_path, maf_table,
+                 table_name="filter_logs_full.log",
+                 variant_inclusion_format="%s_SnpsToInclude.txt",
+                 gene_inclusion_format="%s_GenesToInclude.txt"):
+
+        self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col='Dataset')
+        self.maf_table = maf_table[self.overview_df.index]
+
+        self.overview_df['snp_inclusion_path'] = (
+            self.overview_df.index.map(lambda name: os.path.join(variant_inclusion_format % name)))
+        self.overview_df['gene_inclusion_path'] = (
+            self.overview_df.index.map(lambda name: os.path.join(gene_inclusion_format % name)))
+
+        self.snp_inclusion_df = self.load_inclusion_df('snp_inclusion_path')
+        self.gene_inclusion_df = self.load_inclusion_df('gene_inclusion_path')
+
+    def load_inclusion_df(self, column):
+        # Create an empty dictionary to store dataframes
+        dfs = {}
+
+        # Generate dict of inclusion paths
+        inclusion_paths = self.overview_df[column].to_dict()
+
+        # Iterate over files in the directory
+        for cohort, filepath in inclusion_paths.items():
+
+            df = pd.read_csv(filepath)
+
+            # Set the index to the 'ID' column
+            df.set_index('ID', inplace=True)
+
+            # Add the dataframe to the dictionary
+            dfs[cohort] = df
+
+        # Merge the dataframes on their index
+        merged_df = pd.concat(dfs.values(), axis=1, keys=dfs.keys())
+
+        # Replace NaN values with 0 and convert to boolean
+        merged_df = merged_df.fillna(0).astype(bool)
+
+        return merged_df
+
+    def calculate_maf(self, gene_variant_df):
+
+        # Reformat the presence of the variants in the given dataframe
+        variant_presence = (
+            gene_variant_df
+            .merge(self.snp_inclusion_df, right_index=True, left_on='variant', how='left')
+            .set_index(['phenotype', 'variant']))
+
+        # Reformat the presence of the genes in the given dataframe
+        gene_presence = (
+            gene_variant_df
+            .merge(self.gene_inclusion_df, right_index=True, left_on='phenotype', how='left')
+            .set_index(['phenotype', 'variant']))
+
+        # Now that the tables displaying presence have both the same index, we can determine
+        # for each combination if it is present or not.
+        combined_presence = variant_presence & gene_presence
+
+        # Now, reformat the maf table to also be according to this format.
+        variant_maf = (
+            gene_variant_df
+            .merge(self.maf_table, right_index=True, left_on='variant', how='left')
+            .set_index(['phenotype', 'variant']))
+
+        # Now, for each cohort in the maf table, multiply all MAFs by the sample size
+        variant_maf_weighted = variant_maf.mul(self.overview_df.loc[variant_maf.columns, "N"])
+
+        # Now sum the weighted MAFs, and divide this by the total sample size
+        return variant_maf_weighted.iloc[combined_presence].sum(axis=0) / self.overview_df["N"].sum(axis=1)
+
+
 class GencodeParser:
     def __init__(self, filename):
         self.filename = filename
@@ -65,6 +139,7 @@ class GencodeParser:
                                       'end': int(fields[4])})
         df = pd.DataFrame(genes).astype({'start': 'Int64', 'end': 'Int64'})
         df['chromosome'] = df['chromosome'].str.lstrip('chr').replace({"M": "25", "X": "23", "Y": "24"}).astype('Int64')
+        df['gene_id'] = df['gene_id'].str.split('.').str[0]
         print(df['chromosome'].unique())
         return df[['gene_id', 'chromosome', 'start', 'end']]
 
@@ -80,11 +155,15 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Annotate significant eQTL results with variant and gene information')
 
     parser.add_argument('--input-file', dest='input_file', required=True,
-                        help='Path to the table containing significant eQTL results')
+                        help='Path to the table containing eQTL results')
     parser.add_argument('--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
     parser.add_argument('--gene-ggf', dest='gene_ggf', required=True,
                         help='Path to the Gencode GFF3 file')
+    parser.add_argument('--maf-table', dest='maf', required=True,
+                        help='Path to the table containing minor allele frequencies')
+    parser.add_argument('--inclusion_path', dest='inclusion_path', required=True,
+                        help='Inclusion_path')
     parser.add_argument('--out-prefix', dest='out_prefix', required=True,
                         help='Prefix to use for output file names')
 
@@ -93,11 +172,22 @@ def main(argv=None):
 
     variant_reference = (
         pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
-        .drop(["allele1", "allele2", "str_allele1", "str_allele2"], axis=1)
-        .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant"}, axis=1))
+        .drop(["allele1", "allele2", "str_allele2"], axis=1)
+        .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
+                 "str_allele1": "allele", "str_allele2": "other_allele"}, axis=1))
+
+    maf_dataframe = (
+        pd.read_table(args.maf)
+        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR", "Allele" "OtherAllele"], axis=1)
+        .rename({"ID": "variant"}, axis=1)
+        .set_index("variant"))
+
+    maf_calculator = MafCalculator(
+        inclusion_path=args.inclusion_path,
+        maf_table=maf_dataframe)
+
     gencode_parser = GencodeParser(args.gene_ggf)
     gene_dataframe = gencode_parser.df
-    gene_dataframe['gene_id'] = gene_dataframe['gene_id'].str.split('.').str[0]
     eqtls = pd.read_csv(args.input_file, sep = '\t')
 
     # Perform method
@@ -106,23 +196,9 @@ def main(argv=None):
         .merge(variant_reference, how="left", on="variant")
         .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
 
-    # Identify genes that have a cis-effect
-    preselection_cis = \
-        eqtls_annotated.loc[(eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome), :]
+    eqtls_annotated['maf'] = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
 
-    # Select genes for which we can find a cis-effect
-    cis_genes = preselection_cis.loc[np.logical_or(
-        (preselection_cis.bp_variant - preselection_cis.start).abs() < 1*10**6,
-        (preselection_cis.bp_variant - preselection_cis.end).abs() < 1*10**6),
-                                     ["chromosome", "start", "end", "phenotype"]].drop_duplicates()
-
-    # Select all significant variants
-    variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype"]]
-
-    # Output bed files for which to
-    cis_genes.to_csv(".".join([args.out_prefix, "genes.bed"]), sep='\t', header=False, index=False)
-    variants.to_csv(".".join([args.out_prefix, "variants.bed"]), sep='\t', header=False, index=False)
-
+    eqtls_annotated.to_csv("annotated.csv.gz", sep="\t")
     # Output
     return 0
 

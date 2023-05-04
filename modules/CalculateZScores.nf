@@ -19,9 +19,9 @@ process CalculateZScores {
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
 
-	while read gene; do
-	  cp -r "!{input}/${gene}" tmp_eqtls/
-	done <file_matches.txt
+        while read gene; do
+          cp -r "!{input}/${gene}" tmp_eqtls/
+        done <file_matches.txt
 
         extract_parquet_results.py \
             --input-file tmp_eqtls \

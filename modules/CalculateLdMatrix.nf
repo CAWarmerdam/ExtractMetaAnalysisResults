@@ -3,8 +3,6 @@
 
 process UncorrelatedGenes {
 
-    publishDir "${params.output}", mode: 'copy', overwrite: true
-
     input:
         path matrix
         val threshold
