@@ -186,7 +186,7 @@ workflow CALCULATE_LD {
     main:
         // Calculate LD for all loci
         ld_ch = CalculateLdMatrix(
-            permuted_parquet_ch, uncorrelated_genes_out.genes, variant_reference_ch,
+            permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch,
             loci_ch.splitText( by: locus_chunk_size ))
 
     emit:
@@ -254,11 +254,11 @@ workflow {
 
     // If enabled run the following workflows:
     if ( enable_ld_calculation ) {
-        CALCULATE_LD(permuted_parquet_ch,GENE_CORRELATIONS.uncorrelated_genes,variant_reference_ch,LOCI.loci,locus_chunk_size)
+        CALCULATE_LD(permuted_parquet_ch,GENE_CORRELATIONS.out.uncorrelated_genes,variant_reference_ch,LOCI.out.loci,locus_chunk_size)
     }
 
     if ( enable_extract_loci ) {
-        COLLECT_LOCI( empirical_parquet_ch,maf_table_ch,LOCI.variant_loci,LOCI.gene_loci,variant_flank_size,gene_flank_size,bed_file_ch,genome_ref_ch,locus_chunk_size )
+        COLLECT_LOCI( empirical_parquet_ch,maf_table_ch,LOCI.out.variant_loci,LOCI.out.gene_loci,variant_flank_size,gene_flank_size,bed_file_ch,genome_ref_ch,locus_chunk_size )
     }
 
     if ( enable_cis_trans_coloc ) {
