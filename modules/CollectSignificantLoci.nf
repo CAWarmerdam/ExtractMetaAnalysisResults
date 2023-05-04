@@ -138,7 +138,7 @@ process ExtractLoci {
             --cols "+p_value" \
             --loci loci.txt \
             --output-file extractedResults.csv
-        """
+        '''
 }
 
 process AnnotateLoci {
