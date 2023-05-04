@@ -2,6 +2,7 @@
 
 
 process CalculateZScores {
+    scratch true
 
     input:
         path input
@@ -12,14 +13,24 @@ process CalculateZScores {
     output:
         path "z_scores.txt"
 
-    script:
-        """
-        python3 $baseDir/bin/extract_parquet_results.py \
-            --input-file ${input} \
-            --genes ${genes.join(' ')} \
-            --variants-file ${variants.join(' ')} \
-            --variant-reference ${variant_reference} \
+    shell:
+        phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
+        '''
+        mkdir tmp_eqtls
+        echo "!{phenotypes_formatted}" > file_matches.txt
+
+	while read gene; do
+	  cp -r "!{input}/${gene}" tmp_eqtls/
+	done <file_matches.txt
+
+        extract_parquet_results.py \
+            --input-file tmp_eqtls \
+            --genes !{genes.join(' ')} \
+            --variants-file !{variants.join(' ')} \
+            --variant-reference !{variant_reference} \
             --output-file z_scores.txt \
             --cols '+z_score'
-        """
+
+        rm -r tmp_eqtls
+        '''
 }
