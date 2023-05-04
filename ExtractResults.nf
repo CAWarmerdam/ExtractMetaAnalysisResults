@@ -72,7 +72,7 @@ variant_flank_size=250000
 gene_flank_size=250000
 
 gene_chunk_size=200
-locus_chunks_size=100
+locus_chunk_size=100
 
 enable_ld_calculation = true
 enable_extract_loci = false
