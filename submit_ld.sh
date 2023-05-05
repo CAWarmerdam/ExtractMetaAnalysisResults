@@ -33,7 +33,7 @@ bed="../data/vuckovic_flanked1mb_significant_loci_5mlog9_hg38.bed"
 
 output_folder="/gpfs/space/GI/eQTLGen/freeze1/Interpretation/ld/output"
 
-NXF_VER=21.10.6 ${nextflow_path}/nextflow run AccuratePValues.nf -entry 'CALCULATE_LD' \
+NXF_VER=21.10.6 ${nextflow_path}/nextflow run ExtractResults.nf \
 --empirical ${empirical}/eqtls \
 --permuted ${permuted}/eqtls \
 --reference_data ${reference_data} \
