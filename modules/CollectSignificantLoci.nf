@@ -139,7 +139,7 @@ process ExtractLociEmpirical {
         extract_parquet_results.py \
             --input-file tmp_eqlts \
             --cols "+p_value" \
-            --loci loci.txt \
+            --bed-file loci.txt \
             --output-prefix extracted
 
         gzip extracted*.csv
@@ -178,7 +178,7 @@ process ExtractLociPermuted {
             --input-file tmp_eqlts \
             --genes !{gene_arg} \
             --cols "z_score" \
-            --loci loci.txt \
+            --bed-file loci.txt \
             --output-prefix loci
 
         gzip loci*.csv

@@ -266,7 +266,7 @@ def main(argv=None):
     parser.add_argument('-i', '--input-file', required = True,
                         help = """One or multiple input parquet arrays. 
                                   Usage of wildcards is supported but then the argument has to be quoted.""")
-    parser.add_argument('-o', '--output-file', type = str,
+    parser.add_argument('-o', '--output-prefix', type = str,
                         required = True,
                         help = "Path to tab-separated output file.")
     parser.add_argument('-p', '--p-thresh', type = float,
