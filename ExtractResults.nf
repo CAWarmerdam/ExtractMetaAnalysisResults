@@ -168,18 +168,16 @@ workflow LOCI {
 
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
-            loci_bed_files.variant_loci, variant_flank_size,
-            loci_bed_files.gene_loci, gene_flank_size, bed_file_ch, genome_ref_ch)
+            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch)
 
         // Flank loci and find the union between them, filtering on combinations where EITHER of the below is true:
         // 1. There is a cis genes involved
         // 2. There is a locus involved from the supplementary bed file
-        loci_ch_pruned = SelectFollowUpLoci(
-            loci_bed_files.variant_loci, variant_flank_size,
-            loci_bed_files.gene_loci, gene_flank_size, bed_file_ch, genome_ref_ch)
+        //loci_ch_pruned = SelectFollowUpLoci(
+        //    loci_bed_files.variant_loci, variant_flank_size,
+        //    loci_bed_files.gene_loci, gene_flank_size, bed_file_ch, genome_ref_ch)
     emit:
-        permuted = loci_ch
-        empirical = loci_ch_pruned
+        loci_ch
 }
 
 workflow CALCULATE_LD {
@@ -208,8 +206,7 @@ workflow COLLECT_LOCI {
         gene_reference_ch
         variant_reference_ch
         maf_table_ch
-        loci_permuted_ch
-        loci_empirical_ch
+        loci_ch
 
     main:
         // Extract permuted results for all significant loci
@@ -255,7 +252,7 @@ workflow {
 
     // In enabled, run the following sub workflows
     if ( enable_extract_loci ) {
-        COLLECT_LOCI( empirical_parquet_ch,permuted_parquet_ch,genes_buffered_ch,gene_reference_ch,variant_reference_ch,maf_table_ch,LOCI.out.permuted,LOCI.out.empirical )
+        COLLECT_LOCI( empirical_parquet_ch,permuted_parquet_ch,genes_buffered_ch,gene_reference_ch,variant_reference_ch,maf_table_ch,LOCI.out )
     }
 
     if ( enable_cis_trans_coloc ) {

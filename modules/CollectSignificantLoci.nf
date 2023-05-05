@@ -41,8 +41,7 @@ process AnnotateResults {
         path geneReference
 
     output:
-        path "loci.variants.bed", emit: variant_loci
-        path "loci.genes.bed", emit: gene_loci
+        path "loci.variants.bed"
 
     script:
         """
@@ -58,8 +57,6 @@ process IntersectLoci {
     input:
         path variantLoci
         val variantFlankSize
-        path geneLoci
-        val geneFlankSize
         path bedFile
         path genomeRef
 
@@ -99,10 +96,6 @@ process SelectFollowUpLoci {
         // 1. There is a cis genes involved
         // 2. There is a locus involved from the supplementary bed file
         """
-        bedtools slop -i "${geneLoci}" -g "${genomeRef}" -b "${geneFlankSize}" > "gene_loci.flank.bed"
-        bedtools intersect -wa -a "${variantLoci}" -b "${gene_loci.flank.bed}" "${bed}" -sorted > variant_loci.intersect.bed
-        bedtools slop -i variant_loci.intersect.bed -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
-
         cat "variant_loci.flank.bed" ${bed} > "total.flank.bed"
 
         # Get the union of the two bed files (including flanks)

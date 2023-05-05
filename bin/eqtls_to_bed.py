@@ -87,20 +87,16 @@ def main(argv=None):
         .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
 
     # Identify genes that have a cis-effect
-    preselection_cis = \
-        eqtls_annotated.loc[(eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome), :]
-
-    # Select genes for which we can find a cis-effect
-    cis_genes = preselection_cis.loc[np.logical_or(
-        (preselection_cis.bp_variant - preselection_cis.start).abs() < 1*10**6,
-        (preselection_cis.bp_variant - preselection_cis.end).abs() < 1*10**6),
-                                     ["chromosome", "start", "end", "phenotype"]].drop_duplicates()
+    eqtls_annotated["cis"] = (
+        eqtls_annotated.loc[np.logical_and(
+            eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome,
+            np.logical_or((eqtls_annotated.bp_variant - eqtls_annotated.start).abs() < 1*10**6,
+                          (eqtls_annotated.bp_variant - eqtls_annotated.end).abs() < 1*10**6)), :])
 
     # Select all significant variants
-    variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype"]]
+    variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype", "cis"]]
 
     # Output bed files for which to
-    cis_genes.to_csv(".".join([args.out_prefix, "genes.bed"]), sep='\t', header=False, index=False)
     variants.to_csv(".".join([args.out_prefix, "variants.bed"]), sep='\t', header=False, index=False)
 
     # Output
