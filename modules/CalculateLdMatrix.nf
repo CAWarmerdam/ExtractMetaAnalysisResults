@@ -3,6 +3,8 @@
 
 process UncorrelatedGenes {
 
+    publishDir "${params.output}/gene_correlations", mode: 'copy', overwrite: true
+
     input:
         path matrix
         val threshold
@@ -20,12 +22,10 @@ process UncorrelatedGenes {
 
 process CalculateLdMatrix {
 
-    publishDir "${params.output}", mode: 'copy', overwrite: true
+    publishDir "${params.output}/ld_matrices", mode: 'copy', overwrite: true
 
     input:
-        path permuted
-        path genes
-        path variantReference
+        path results
         val loci
 
     output:
@@ -36,10 +36,8 @@ process CalculateLdMatrix {
         echo "${loci}" > "loci.txt"
 
         ld_calculator.py \
-        --input-file ${permuted} \
-        --genes ${genes} \
+        --input-file ${results} \
         --loci loci.txt \
-        --variant-reference ${variantReference} \
         --output-prefix "ld"
         '''
 }

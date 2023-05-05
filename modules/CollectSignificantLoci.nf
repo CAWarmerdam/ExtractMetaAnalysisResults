@@ -2,6 +2,7 @@
 
 process ExtractSignificantResults {
     scratch true
+    publishDir "${params.output}/significant_results", mode: 'copy', overwrite: true
 
     input:
         path input
@@ -9,7 +10,7 @@ process ExtractSignificantResults {
         val p_value
 
     output:
-        path "loci.txt"
+        path "loci.out.csv"
 
     shell:
         gene_arg = genes.join(" ")
@@ -29,7 +30,7 @@ process ExtractSignificantResults {
             --genes !{gene_arg} \
             --p-thresh !{p_value} \
             --cols "+p_value" \
-            --output-file loci.txt
+            --output-prefix loci
         '''
 }
 
@@ -110,7 +111,9 @@ process SelectFollowUpLoci {
         """
 }
 
-process ExtractLoci {
+process ExtractLociEmpirical {
+    scratch true
+
     input:
         path eqtls
         val genes
@@ -118,7 +121,7 @@ process ExtractLoci {
         val loci
 
     output:
-        path "extractedResults.csv"
+        path "extracted*.csv.gz"
 
     script:
         gene_arg = genes.join(" ")
@@ -137,11 +140,56 @@ process ExtractLoci {
             --input-file tmp_eqlts \
             --cols "+p_value" \
             --loci loci.txt \
-            --output-file extractedResults.csv
+            --output-prefix extracted
+
+        gzip extracted*.csv
+        rm extracted*.csv
         '''
 }
 
+
+process ExtractLociPermuted {
+    scratch true
+    publishDir "${params.output}/loci_permuted", mode: 'copy', overwrite: true
+
+    input:
+        path eqtls
+        val genes
+        path variantReference
+        val loci
+
+    output:
+        path "loci*.csv"
+
+    script:
+        gene_arg = genes.join(" ")
+        phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
+        '''
+        mkdir tmp_eqtls
+        echo "!{phenotypes_formatted}" > file_matches.txt
+
+        while read gene; do
+          cp -r "!{input}/${gene}" tmp_eqtls/
+        done <file_matches.txt
+
+        echo "${loci}" > "loci.txt"
+
+        extract_parquet_results.py \
+            --input-file tmp_eqlts \
+            --genes !{gene_arg} \
+            --cols "z_score" \
+            --loci loci.txt \
+            --output-prefix loci
+
+        gzip loci*.csv
+        rm loci*.csv
+        '''
+}
+
+
 process AnnotateLoci {
+    publishDir "${params.output}/loci_empirical_annotated", mode: 'copy', overwrite: true
+
     input:
         path significantResults
         path variantReference

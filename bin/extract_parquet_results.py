@@ -216,6 +216,47 @@ class QtlResultProcessor:
         for col in cols:
             self._df[col] = self.column_mapping[col]()
 
+
+def column_specification(cols):
+    column_specifications = {"-": set(), "+": set(), "": set()}
+    if cols is not None and cols != "":
+        for column_specification in cols.split(","):
+            regex_match = re.match(r"([+-]?)(\w+)", column_specification)
+            if not regex_match:
+                argparse.ArgumentTypeError(
+                    "Column specification {} did not match expected pattern"
+                    .format(column_specification))
+            column_specifications[regex_match.group(1)].add(regex_match.group(2))
+    return column_specifications
+
+
+def export_write(input_file, output_file, qtl_gene_filter, variant_filters, column_specifications, p_thresh=None):
+    first = True
+
+    with open(output_file, 'w') as f:
+        for gene in qtl_gene_filter.get_values():
+            print("Gene {}".format(gene))
+
+            qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+
+            result_processor = QtlResultProcessor(
+                input_file, qtl_single_gene_filter)
+            result_processor.variant_filters = variant_filters
+            if p_thresh is not None:
+                result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
+
+            df = result_processor.extract(
+                cols=column_specifications[""],
+                drop=column_specifications["-"],
+                add=column_specifications["+"])
+            df.to_csv(f, sep="\t", header=first, index=None)
+
+            first = False
+
+        print("Done!")
+        print("Closing output file '{}'".format(output_file))
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -244,8 +285,8 @@ def main(argv=None):
                         help = """Bed file with a list of loci to extract""")
     parser.add_argument('-r', '--variant-reference', required = False,
                         help = "Reference for variants. Has to be gzipped and space-delimited.")
-    parser.add_argument('-c', '--cols', required = False, default = None,
-                        help = """Extract only z-scores""")
+    parser.add_argument('-c', '--cols', dest="column_specifications", required = False, default = None,
+                        type=column_specification, help="""Extract only z-scores""")
 
     args = parser.parse_args(argv[1:])
 
@@ -288,79 +329,42 @@ def main(argv=None):
 
     qtl_gene_filter = None
 
-    if loci is None:
-        if args.genes_file is not None:
-            print("Using variants file '%s' to filter on variants." % args.genes_file)
-            qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
-        if args.genes is not None:
-            print("Provided %d genes for filtering." % len(args.genes))
-            if qtl_gene_filter is not None:
-                print("Variant filter already defined. Skipping...")
-            qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
-
-    column_specifications = {"-": set(), "+": set(), "": set()}
-    if args.cols is not None and args.cols != "":
-        for column_specification in args.cols.split(","):
-            regex_match = re.match(r"([+-]?)(\w+)", column_specification)
-            if not regex_match:
-                parser.error(
-                    "Column specification {} did not match expected pattern"
-                    .format(column_specification))
-            column_specifications[regex_match.group(1)].add(regex_match.group(2))
-
-    print(column_specifications)
-
-    first = True
-
-    with open(args.output_file, 'w') as f:
-
+    if args.genes_file is not None:
+        print("Using variants file '%s' to filter on variants." % args.genes_file)
+        qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
+    if args.genes is not None:
+        print("Provided %d genes for filtering." % len(args.genes))
         if qtl_gene_filter is not None:
+            print("Variant filter already defined. Skipping...")
+        qtl_gene_filter = QtlGeneFilter.from_list(args.genes)
 
-            for gene in qtl_gene_filter.get_values():
-                print("Gene {}".format(gene))
+    if loci is None:
+        print("Starting export")
+        output_file = "{}.out.csv.gz".format(args.output_prefix)
+        export_write(args.input_file, output_file,
+                     qtl_gene_filter, variant_filters,
+                     args.column_specifications, args.p_thresh)
 
-                qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+    else:
+        for i, (index, row) in enumerate(loci.iterrows()):
+            print("Starting export for locus {}/{}".format(i+1, loci.shape[0]))
 
-                result_processor = QtlResultProcessor(
-                    args.input_file, qtl_single_gene_filter)
-                result_processor.variant_filters = variant_filters
-                if args.p_thresh is not None:
-                    result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
+            locus = row["name"].split(",")
+            chromosome = row["chromosome"]
+            start = row["start"]
+            stop = row["stop"]
 
-                df = result_processor.extract(
-                    cols=column_specifications[""],
-                    drop=column_specifications["-"],
-                    add=column_specifications["+"])
-                df.to_csv(f, sep="\t", header=first, index=None)
+            locus_filter = QtlLocusVariantFilter.from_locus(
+                chromosome, start, stop, variant_reference)
 
-                first = False
+            if qtl_gene_filter is None:
+                qtl_gene_filter = QtlGeneFilter.from_list(locus)
 
-        if first and loci is not None:
-            for index, row in loci.iterrows():
-                print(row)
+            output_file = "{}.{}_{}-{}.out.csv.gz".format(args.output_prefix, chromosome, start, stop)
 
-                locus = row["name"].split(",")
-                chromosome = row["chromosome"]
-                start = row["start"]
-                stop = row["stop"]
-
-                locus_filter = QtlLocusVariantFilter.from_locus(
-                    chromosome, start, stop, variant_reference)
-
-                result_processor = QtlResultProcessor(
-                    args.input_file, gene_filter=QtlGeneFilter.from_list(locus))
-                result_processor.variant_filters = [locus_filter]
-                if args.p_thresh is not None:
-                    result_processor.significance_filter = QtlPThresholdFilter(args.p_thresh)
-
-                df = result_processor.extract(
-                    cols=column_specifications[""],
-                    drop=column_specifications["-"],
-                    add=column_specifications["+"])
-                df.to_csv(f, sep="\t", header=first, index=None)
-
-        print("Done!")
-        print("Closing output file '{}'".format(args.output_file))
+            export_write(args.input_file, output_file,
+                         qtl_gene_filter, [locus_filter],
+                         args.column_specifications, args.p_thresh)
 
     return 0
 
