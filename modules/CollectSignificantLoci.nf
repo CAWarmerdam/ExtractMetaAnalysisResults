@@ -31,6 +31,8 @@ process ExtractSignificantResults {
             --p-thresh !{p_value} \
             --cols "+p_value" \
             --output-prefix loci
+
+        gunzip loci.out.csv.gz
         '''
 }
 
@@ -114,7 +116,7 @@ process ExtractLociEmpirical {
         val loci
 
     output:
-        path "extracted*.csv.gz"
+        path "extracted*out.csv.gz"
 
     script:
         gene_arg = genes.join(" ")
@@ -135,8 +137,6 @@ process ExtractLociEmpirical {
             --bed-file loci.txt \
             --output-prefix extracted
 
-        gzip extracted*.csv
-        rm extracted*.csv
         '''
 }
 
@@ -152,7 +152,7 @@ process ExtractLociPermuted {
         val loci
 
     output:
-        path "loci*.csv"
+        path "loci*out.csv.gz"
 
     script:
         gene_arg = genes.join(" ")
@@ -174,8 +174,6 @@ process ExtractLociPermuted {
             --bed-file loci.txt \
             --output-prefix loci
 
-        gzip loci*.csv
-        rm loci*.csv
         '''
 }
 

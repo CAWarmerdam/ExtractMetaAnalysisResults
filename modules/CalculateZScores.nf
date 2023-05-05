@@ -31,6 +31,7 @@ process CalculateZScores {
             --output-prefix z_scores \
             --cols '+z_score'
 
+        gunzip z_scores.out.csv.gz
         rm -r tmp_eqtls
         '''
 }
