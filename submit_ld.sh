@@ -31,6 +31,8 @@ gene_reference="gencode.v43.basic.annotation.gff3.gz"
 
 bed="../data/vuckovic_flanked1mb_significant_loci_5mlog9_hg38.bed"
 
+inclusion_step_output=""
+
 output_folder="/gpfs/space/GI/eQTLGen/freeze1/Interpretation/ld/output"
 
 NXF_VER=21.10.6 ${nextflow_path}/nextflow run ExtractResults.nf \
@@ -43,5 +45,6 @@ NXF_VER=21.10.6 ${nextflow_path}/nextflow run ExtractResults.nf \
 --gene_reference ${gene_reference} \
 --background_bed ${bed} \
 --output ${output_folder} \
+--inclusion_step_output ${inclusion_step_output}
 -resume \
 -profile slurm,singularity

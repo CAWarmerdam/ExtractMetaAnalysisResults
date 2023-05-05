@@ -340,7 +340,7 @@ def main(argv=None):
 
     if loci is None:
         print("Starting export")
-        output_file = "{}.out.csv.gz".format(args.output_prefix)
+        output_file = "{}.out.csv".format(args.output_prefix)
         export_write(args.input_file, output_file,
                      qtl_gene_filter, variant_filters,
                      args.column_specifications, args.p_thresh)
@@ -360,7 +360,7 @@ def main(argv=None):
             if qtl_gene_filter is None:
                 qtl_gene_filter = QtlGeneFilter.from_list(locus)
 
-            output_file = "{}.{}_{}-{}.out.csv.gz".format(args.output_prefix, chromosome, start, stop)
+            output_file = "{}.{}_{}-{}.out.csv".format(args.output_prefix, chromosome, start, stop)
 
             export_write(args.input_file, output_file,
                          qtl_gene_filter, [locus_filter],

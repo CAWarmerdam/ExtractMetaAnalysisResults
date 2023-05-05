@@ -49,6 +49,7 @@ Mandatory arguments:
 params.maf_table = 'NO_FILE'
 params.clustered_loci = 'NO_FILE'
 params.background_bed = 'NO_FILE'
+params.inclusion_step_output = 'NO_FILE'
 
 if (params.help){
     helpmessage()
@@ -64,6 +65,7 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
+inclusion_step_output_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.background_bed)
 
 Channel.fromPath(params.maf_table).set { maf_table_ch }
@@ -219,22 +221,25 @@ workflow COLLECT_LOCI {
         loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch)
 
     emit:
-        loci_annotated_combined_ch
-        loci_permuted_combined_ch
+        empirical = loci_annotated_combined_ch
+        permuted = loci_permuted_combined_ch
 }
 
 workflow CIS_TRANS_COLOCALIZATION {
     take:
         loci_annotated_ch
+        inclusion_step_output_ch
         posterior_threshold
         cs_threshold
         output_cs_pip
 
     main:
+        // Calculate the sample overlap matrix
+        sample_overlap_ch = SampleOverlapMatrix(inclusion_step_output_ch)
 
         // For each cluster of overlapping significant loci, determine if the genes colocalize
         hypr_coloc_results = RunHyprColoc(
-            loci_annotated_ch, posterior_threshold, cs_threshold, output_cs_pip)
+            loci_annotated_ch, sample_overlap_ch, posterior_threshold, cs_threshold, output_cs_pip)
 
     emit:
         hypr_coloc_results
@@ -256,7 +261,7 @@ workflow {
     }
 
     if ( enable_cis_trans_coloc ) {
-        CIS_TRANS_COLOCALIZATION(COLLECT_LOCI.out,params.posterior_threshold,params.cs_threshold,params.output_cs_pip)
+        CIS_TRANS_COLOCALIZATION(COLLECT_LOCI.out.empirical,inclusion_step_output_ch,params.posterior_threshold,params.cs_threshold,params.output_cs_pip)
     }
 }
 
