@@ -11,7 +11,7 @@ process CalculateZScores {
         val variants
 
     output:
-        path "z_scores.txt"
+        path "z_scores.out.csv"
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
@@ -28,7 +28,7 @@ process CalculateZScores {
             --genes !{genes.join(' ')} \
             --variants-file !{variants.join(' ')} \
             --variant-reference !{variant_reference} \
-            --output-file z_scores.txt \
+            --output-prefix z_scores \
             --cols '+z_score'
 
         rm -r tmp_eqtls
