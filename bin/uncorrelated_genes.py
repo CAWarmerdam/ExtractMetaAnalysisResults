@@ -74,7 +74,7 @@ def main(argv=None):
     print(matrix)
 
     # calculate the pairwise correlations between genes
-    corr_matrix = ma.corrcoef(ma.masked_invalid(matrix.to_numpy()))
+    corr_matrix = ma.corrcoef(ma.masked_invalid(matrix.to_numpy()), rowvar=False)
 
     # Make a pandas dataframe
     corr_dataframe = pd.DataFrame(corr_matrix, index=matrix.columns, columns=matrix.columns)
