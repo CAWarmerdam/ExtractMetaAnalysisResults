@@ -4,9 +4,10 @@
 import sys
 import argparse
 import pandas as pd
+import numpy as np
 
 
-def maximum_independent_set(matrix):
+def maximum_independent_set(dataframe):
     """
     Given a boolean matrix represented as a pandas dataframe, returns the vertices
     that are part of the maximum independent set using the algorithm that identifies
@@ -16,17 +17,25 @@ def maximum_independent_set(matrix):
     # Initialize the set of independent vertices to be empty
     independent_vertices = set()
 
+    # Convert pandas DataFrame to numpy array
+    matrix = dataframe.to_numpy()
+
+    # Sample names
+    names = dataframe.columns.to_numpy()
+
     # Loop while the matrix is not empty
-    while not matrix.empty:
+    while not matrix.size == 0:
         # Find the vertex with the least amount of edges
-        least_connected = matrix.sum(axis=1).idxmin()
-        print(least_connected)
+        least_connected = matrix.sum(axis=1).argmin()
+        print(names[least_connected])
 
         # Add the least connected vertex to the independent set
-        independent_vertices.add(least_connected)
+        independent_vertices.add(names[least_connected])
 
         # Remove all vertices that have an edge with the least connected vertex
-        matrix = matrix.loc[matrix[least_connected] == 0, matrix[least_connected] == 0]
+        no_edges = matrix[least_connected] == 0
+        matrix = matrix[no_edges, no_edges]
+        names = names[no_edges]
         print(matrix.shape)
 
     return independent_vertices
