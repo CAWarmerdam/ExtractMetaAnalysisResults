@@ -5,6 +5,7 @@ import sys
 import argparse
 import pandas as pd
 import numpy as np
+import numpy.ma as ma
 
 
 def maximum_independent_set(dataframe):
@@ -73,11 +74,14 @@ def main(argv=None):
     print(matrix)
 
     # calculate the pairwise correlations between genes
-    corr_matrix = matrix.corr()
+    corr_matrix = ma.corrcoef(ma.masked_invalid(matrix.to_numpy()))
 
-    corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
+    # Make a pandas dataframe
+    corr_dataframe = pd.DataFrame(corr_matrix, index=matrix.columns, columns=matrix.columns)
 
-    r_squared_matrix = corr_matrix.pow(2)
+    corr_dataframe.to_csv("gene_correlation_matrix.csv.gz")
+
+    r_squared_matrix = corr_dataframe.pow(2)
 
     print(r_squared_matrix)
 
