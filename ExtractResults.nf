@@ -64,7 +64,7 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
-bed_file = file(params.background_bed)
+bed_file_ch = file(params.background_bed)
 
 Channel.fromPath(params.maf_table).set { maf_table_ch }
 
