@@ -6,7 +6,7 @@
 nextflow.enable.dsl = 2
 
 // import modules
-include { ExtractSignificantResults; AnnotateResults; IntersectLoci; SelectFollowUpLoci; ExtractLoci; AnnotateLoci } from './modules/CollectSignificantLoci'
+include { ExtractSignificantResults; AnnotateResults; IntersectLoci; SelectFollowUpLoci; ExtractLociPermuted; ExtractLociEmpirical; AnnotateLoci } from './modules/CollectSignificantLoci'
 include { GetBreakpoints; CalculateAccuratePermutationPValues } from './modules/CalculateAccuratePermutationPValues'
 include { CalculateLdMatrix; UncorrelatedGenes } from './modules/CalculateLdMatrix'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
