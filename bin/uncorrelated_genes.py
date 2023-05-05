@@ -8,7 +8,7 @@ import numpy as np
 import numpy.ma as ma
 
 
-def maximum_independent_set(dataframe):
+def maximum_independent_set(matrix, names):
     """
     Given a boolean matrix represented as a pandas dataframe, returns the vertices
     that are part of the maximum independent set using the algorithm that identifies
@@ -17,12 +17,6 @@ def maximum_independent_set(dataframe):
     """
     # Initialize the set of independent vertices to be empty
     independent_vertices = set()
-
-    # Convert pandas DataFrame to numpy array
-    matrix = dataframe.to_numpy()
-
-    # Sample names
-    names = dataframe.columns.to_numpy()
 
     # Loop while the matrix is not empty
     while not matrix.size == 0:
@@ -42,14 +36,11 @@ def maximum_independent_set(dataframe):
     return independent_vertices
 
 
-def find_uncorr_genes(r_squared_matrix, threshold):
+def find_uncorr_genes(r_squared_matrix, names, threshold=0.1):
     # Binarise the correlation matrix
-    matrix_threshold = pd.DataFrame(
-        (r_squared_matrix >= threshold),
-        index=r_squared_matrix.index,
-        columns=r_squared_matrix.columns)
+    matrix_threshold = r_squared_matrix > threshold
     print(matrix_threshold)
-    return maximum_independent_set(matrix_threshold)
+    return maximum_independent_set(matrix_threshold, names)
 
 
 def main(argv=None):
@@ -75,17 +66,18 @@ def main(argv=None):
 
     # calculate the pairwise correlations between genes
     corr_matrix = ma.corrcoef(ma.masked_invalid(matrix.to_numpy()), rowvar=False)
+    print(corr_matrix.shape)
 
     # Make a pandas dataframe
     corr_dataframe = pd.DataFrame(corr_matrix, index=matrix.columns, columns=matrix.columns)
 
     corr_dataframe.to_csv("gene_correlation_matrix.csv.gz")
 
-    r_squared_matrix = corr_dataframe.pow(2)
+    r_squared_matrix = corr_matrix**2
 
     print(r_squared_matrix)
 
-    uncorrelated_genes = find_uncorr_genes(r_squared_matrix, args.threshold)
+    uncorrelated_genes = find_uncorr_genes(r_squared_matrix, names=matrix.columns, threshold=args.threshold)
 
     # write the list of uncorrelated genes to a file
     with open(args.output_file, 'w') as f:
