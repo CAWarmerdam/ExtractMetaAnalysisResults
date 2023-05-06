@@ -77,8 +77,8 @@ gene_chunk_size=200
 locus_chunk_size=100
 
 enable_ld_calculation = true
-enable_extract_loci = true
-enable_cis_trans_coloc = true
+enable_extract_loci = false
+enable_cis_trans_coloc = false
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"

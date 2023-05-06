@@ -20,7 +20,7 @@ set -f
 
 nextflow_path=/gpfs/space/GI/eQTLGen/tools/
 
-empirical=/gpfs/space/GI/eQTLGen/freeze1/eqtl_mapping/output/empirical_4GenPC20ExpPC_2023-01-27_PerGene/
+empirical=/gpfs/space/GI/eQTLGen/freeze1/eqtl_mapping/output/empirical_4GenPC20ExpPC_2023-05-02_PerGene/
 permuted=/gpfs/space/GI/eQTLGen/freeze1/eqtl_mapping/output/permuted_4GenPC20ExpPC_2023-04-18_PerGene/
 
 reference_data='/gpfs/space/GI/eQTLGen/make_reference_files/30x_reference/hg38/phasing_reference/phasing/chr*.bcf'
