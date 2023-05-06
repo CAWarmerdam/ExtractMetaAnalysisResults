@@ -135,7 +135,6 @@ process ExtractLociEmpirical {
             --bed-file loci.txt \
             --output-prefix extracted
 
-        gzip extracted*out.csv
         '''
 }
 
@@ -172,7 +171,6 @@ process ExtractLociPermuted {
             --bed-file loci.txt \
             --output-prefix extracted
 
-        gzip extracted*out.csv
         '''
 }
 

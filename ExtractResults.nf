@@ -230,11 +230,11 @@ workflow COLLECT_LOCI {
         // Annotate loci
         loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch)
 
-        loci_annotated_ch =
+        loci_permuted_combined_ch = ConcatLoci(loci_permuted_ch)
 
     emit:
         empirical = loci_annotated_ch
-        permuted = loci_permuted_ch
+        permuted = loci_permuted_combined_ch
 }
 
 workflow CIS_TRANS_COLOCALIZATION {
