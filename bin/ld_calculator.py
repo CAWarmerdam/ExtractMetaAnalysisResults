@@ -6,13 +6,6 @@ import sys
 import pandas as pd
 import pyarrow as pa
 
-from extract_parquet_results import QtlResultProcessor, QtlGeneFilter, \
-    QtlLocusVariantFilter
-
-SCHEMA = pa.schema([("variant", pa.string()), ("beta", pa.float64()),
-                    ("standard_error", pa.float64()), ("i_squared", pa.float64()),
-                    ("sample_size", pa.float64())])
-
 
 def main(argv=None):
     if argv is None:
@@ -21,53 +14,30 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description = "Extract HASE output for specified loci, and calculate LD matrix "
                                                    "for these loci.")
 
-    parser.add_argument('-i', '--input-file', required = True,
+    parser.add_argument('-i', '--input-prefix', required = True,
                         help = """Input parquet dataset""")
     parser.add_argument('-o', '--output-prefix', type = str,
                         required = True,
                         help = "Output prefix which to use for writing LD data.")
-    parser.add_argument('-G', '--genes-file', required = False, default = None,
+    parser.add_argument('-l', '--loci', required = False, default = None,
                         help = """File with the list of phenotypes to include.""")
-    parser.add_argument('-r', '--variant-reference', dest='variant_reference', required=True,
-                        help='Path to the table containing all SNPs from a reference panel')
-    parser.add_argument('-l', '--loci', required = True, default = None,
-                        help = """A bed file that contains one or more loci for which to calculate LD""")
 
     args = parser.parse_args(argv[1:])
     print(args)
 
-    variant_reference = (
-        pd.read_csv(args.variant_reference, sep = ' ')
-        .drop(["allele1", "allele2"], axis=1)
-        .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}, axis=1))
-
-    qtl_gene_filter = None
-
-    if args.genes_file is not None:
-        print("Using variants file '%s' to filter on variants." % args.genes_file)
-        qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
-
     loci = pd.read_csv(args.loci, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
     print(loci)
 
-    for index, row in loci.iterrows():
-        print(row)
+    for i, (index, row) in enumerate(loci.iterrows()):
+        print("Starting export for locus {}/{}".format(i+1, loci.shape[0]))
 
-        locus = row["name"].split(",")
-        print(locus)
         chromosome = row["chromosome"]
         start = row["start"]
         stop = row["stop"]
 
-        locus_filter = QtlLocusVariantFilter.from_locus(
-            chromosome, start, stop, variant_reference)
+        locus_file = "{}.{}_{}-{}.out.csv".format(args.output_prefix, chromosome, start, stop)
 
-        result_processor = QtlResultProcessor(
-            args.input_file, gene_filter=qtl_gene_filter)
-        result_processor.variant_filters = [locus_filter]
-
-        # Get dataframe with z-scores
-        df = result_processor.extract(cols={"z_score",})
+        df = pd.read_csv(locus_file)
 
         # pivot the DataFrame to get a matrix of z-scores
         matrix = df.pivot(index='phenotype', columns='variant', values='z_score')

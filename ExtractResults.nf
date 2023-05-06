@@ -139,7 +139,7 @@ workflow GENE_CORRELATIONS {
         z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch)
 
         // Combine Z-scores channel into a single file
-        zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true).collect()
+        zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true, cache: 'lenient').collect()
 
         // Calculate gene gene matrix correlations
         uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, 0.05)
@@ -163,7 +163,7 @@ workflow LOCI {
     main:
         // Get a collection of chunks for which to calculate LD
         significant_results_ch = ExtractSignificantResults(empirical_parquet_ch, genes_buffered_ch, 0.000000000002496)
-            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true).collect()
+            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: 'lenient').collect()
 
         // Add bp data to loci
         loci_bed_files = AnnotateResults(significant_results_ch, variant_reference_ch, gene_reference_ch)
@@ -213,12 +213,24 @@ workflow COLLECT_LOCI {
     main:
         // Extract permuted results for all significant loci
         loci_permuted_ch = ExtractLociPermuted(permuted_parquet_ch, loci_permuted_ch, variant_reference_ch, genes_buffered_ch)
+            .flatten()
+            .map { file ->
+                   def key = file.name.toString().tokenize('.').get(1)
+                   return tuple(key, file) }
+            groupTuple()
 
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
         loci_empirical_ch = ExtractLociEmpirical(empirical_parquet_ch, loci_empirical_ch, variant_reference_ch, genes_buffered_ch)
+            .flatten()
+            .map { file ->
+                   def key = file.name.toString().tokenize('.').get(1)
+                   return tuple(key, file) }
+            groupTuple()
 
         // Annotate loci
         loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch)
+
+        loci_annotated_ch =
 
     emit:
         empirical = loci_annotated_ch

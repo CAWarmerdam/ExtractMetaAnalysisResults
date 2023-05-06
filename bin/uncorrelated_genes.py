@@ -65,19 +65,15 @@ def main(argv=None):
     print(matrix)
 
     # calculate the pairwise correlations between genes
-    corr_matrix = ma.corrcoef(ma.masked_invalid(matrix.to_numpy()), rowvar=False)
-    print(corr_matrix.shape)
+    corr_matrix = matrix.corr()
 
-    # Make a pandas dataframe
-    corr_dataframe = pd.DataFrame(corr_matrix, index=matrix.columns, columns=matrix.columns)
+    corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
 
-    corr_dataframe.to_csv("gene_correlation_matrix.csv.gz")
-
-    r_squared_matrix = corr_matrix**2
+    r_squared_matrix = corr_matrix.pow(2)
 
     print(r_squared_matrix)
 
-    uncorrelated_genes = find_uncorr_genes(r_squared_matrix, names=matrix.columns, threshold=args.threshold)
+    uncorrelated_genes = find_uncorr_genes(r_squared_matrix.to_numpy(), names=matrix.columns, threshold=args.threshold)
 
     # write the list of uncorrelated genes to a file
     with open(args.output_file, 'w') as f:

@@ -25,8 +25,8 @@ process CalculateLdMatrix {
     publishDir "${params.output}/ld_matrices", mode: 'copy', overwrite: true
 
     input:
-        path results
         val loci
+        path results
 
     output:
         path "ld.*.csv.gz"
