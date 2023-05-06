@@ -106,6 +106,7 @@ process SelectFollowUpLoci {
 
 process ExtractLociEmpirical {
     scratch true
+    publishDir "${params.output}/loci_empirical", mode: 'copy', overwrite: true
 
     input:
         path eqtls

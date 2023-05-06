@@ -87,11 +87,10 @@ def main(argv=None):
         .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
 
     # Identify genes that have a cis-effect
-    eqtls_annotated["cis"] = (
-        eqtls_annotated.loc[np.logical_and(
-            eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome,
-            np.logical_or((eqtls_annotated.bp_variant - eqtls_annotated.start).abs() < 1*10**6,
-                          (eqtls_annotated.bp_variant - eqtls_annotated.end).abs() < 1*10**6)), :])
+    eqtls_annotated["cis"] = np.logical_and(
+        eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome,
+        np.logical_or((eqtls_annotated.bp_variant - eqtls_annotated.start).abs() < 1*10**6,
+                      (eqtls_annotated.bp_variant - eqtls_annotated.end).abs() < 1*10**6))
 
     # Select all significant variants
     variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype", "cis"]]
