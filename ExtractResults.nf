@@ -77,8 +77,8 @@ gene_chunk_size=200
 locus_chunk_size=100
 
 enable_ld_calculation = true
-enable_extract_loci = false
-enable_cis_trans_coloc = false
+enable_extract_loci = true
+enable_cis_trans_coloc = true
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
@@ -221,8 +221,8 @@ workflow COLLECT_LOCI {
         loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch)
 
     emit:
-        empirical = loci_annotated_combined_ch
-        permuted = loci_permuted_combined_ch
+        empirical = loci_annotated_ch
+        permuted = loci_permuted_ch
 }
 
 workflow CIS_TRANS_COLOCALIZATION {
