@@ -198,7 +198,7 @@ def main(argv=None):
 
     eqtls_annotated['maf'] = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
 
-    eqtls_annotated.to_csv("annotated.csv.gz", sep="\t")
+    eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), sep="\t")
     # Output
     return 0
 

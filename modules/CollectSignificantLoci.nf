@@ -106,7 +106,6 @@ process SelectFollowUpLoci {
 
 process ExtractLociEmpirical {
     scratch true
-    publishDir "${params.output}/loci_empirical", mode: 'copy', overwrite: true
 
     input:
         path eqtls
@@ -143,7 +142,6 @@ process ExtractLociEmpirical {
 
 process ExtractLociPermuted {
     scratch true
-    publishDir "${params.output}/loci_permuted", mode: 'copy', overwrite: true
 
     input:
         path eqtls
@@ -183,23 +181,43 @@ process AnnotateLoci {
     publishDir "${params.output}/loci_empirical_annotated", mode: 'copy', overwrite: true
 
     input:
-        path significantResults
+        tuple val(locus_string), path(files, stageAs: "locus_*.csv")
         path variantReference
         path geneReference
         path mafTable
         path inclusionDir
 
     output:
-        path "annotated.cvs.gz"
+        path "annotated.${locus_string}.cvs.gz"
 
     script:
         """
+        head -n 1 ${files[0]} > concatenated.${locus_string}.csv
+        tail -n +2 ${files[1..-1].join(' ')} >> concatenated.${locus_string}.csv
+
         annotate_loci.py \
-            --input-file ${significantResults} \
+            --input-file collected.csv \
             --variant-reference ${variantReference} \
             --gene-ggf ${geneReference} \
             --maf-table ${mafTable} \
             --inclusion-path ${inclusionDir} \
-            --out-prefix "annotated"
+            --out-prefix annotated.${locus_string}
+        """
+}
+
+process ConcatLoci {
+    publishDir "${params.output}/loci_permuted", mode: 'copy', overwrite: true
+
+    input:
+        tuple val(locus_string), path(files, stageAs: "locus_*.csv")
+
+    output:
+        path "concatenated.${locus_string}.csv.gz"
+
+    script:
+        """
+        head -n 1 ${files[0]} > concatenated.${locus_string}.csv
+        tail -n +2 ${files[1..-1].join(' ')} >> concatenated.${locus_string}.csv
+        gzip -f concatenated.${locus_string}.csv
         """
 }
