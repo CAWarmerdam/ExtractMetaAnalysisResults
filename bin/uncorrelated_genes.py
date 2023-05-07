@@ -18,7 +18,14 @@ def maximum_independent_set(matrix, names):
     # Initialize the set of independent vertices to be empty
     independent_vertices = set()
 
-    print(matrix)
+    # First collect every gene that is totally independent.
+    # Removing these will not have an effect on other genes.
+    unconnected_vertices = matrix.sum(axis=1) == 1
+    independent_vertices.update(set(names[unconnected_vertices]))
+
+    # Now remove these from the matrix and the names
+    matrix = matrix[np.ix_(~unconnected_vertices, ~unconnected_vertices)]
+    names = names[~unconnected_vertices]
 
     # Loop while the matrix is not empty
     while not matrix.size == 0:
@@ -31,7 +38,7 @@ def maximum_independent_set(matrix, names):
 
         # Remove all vertices that have an edge with the least connected vertex
         no_edges = matrix[least_connected, :] == 0
-        print(no_edges)
+
         matrix = matrix[np.ix_(no_edges, no_edges)]
         names = names[no_edges]
         print(matrix.shape)
