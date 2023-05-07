@@ -28,7 +28,7 @@ def maximum_independent_set(matrix, names):
         independent_vertices.add(names[least_connected])
 
         # Remove all vertices that have an edge with the least connected vertex
-        no_edges = matrix[least_connected] == 0
+        no_edges = matrix[least_connected, :] == 0
         matrix = matrix[no_edges, no_edges]
         names = names[no_edges]
         print(matrix.shape)
