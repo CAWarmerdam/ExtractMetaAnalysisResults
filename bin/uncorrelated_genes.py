@@ -18,6 +18,8 @@ def maximum_independent_set(matrix, names):
     # Initialize the set of independent vertices to be empty
     independent_vertices = set()
 
+    print(matrix)
+
     # Loop while the matrix is not empty
     while not matrix.size == 0:
         # Find the vertex with the least amount of edges
@@ -29,7 +31,8 @@ def maximum_independent_set(matrix, names):
 
         # Remove all vertices that have an edge with the least connected vertex
         no_edges = matrix[least_connected, :] == 0
-        matrix = matrix[no_edges, no_edges]
+        print(no_edges)
+        matrix = matrix[np.ix_(no_edges, no_edges)]
         names = names[no_edges]
         print(matrix.shape)
 
