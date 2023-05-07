@@ -89,8 +89,8 @@ def main(argv=None):
     # Identify genes that have a cis-effect
     eqtls_annotated["cis"] = np.logical_and(
         eqtls_annotated.chromosome_variant == eqtls_annotated.chromosome_gene,
-        np.logical_or((eqtls_annotated.bp_variant - eqtls_annotated.start_gene).abs() < 1*10**6,
-                      (eqtls_annotated.bp_variant - eqtls_annotated.end_gene).abs() < 1*10**6))
+        np.logical_or((eqtls_annotated.bp_variant - eqtls_annotated.start).abs() < 1*10**6,
+                      (eqtls_annotated.bp_variant - eqtls_annotated.end).abs() < 1*10**6))
 
     # Select all significant variants
     variants = eqtls_annotated.loc[:,["chromosome_variant", "bp_variant", "bp_variant", "phenotype", "cis"]]
