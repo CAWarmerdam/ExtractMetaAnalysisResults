@@ -16,7 +16,7 @@ process UncorrelatedGenes {
     script:
         """
         export PYTHONUNBUFFERED="1"
-        uncorrelated_genes.py ${matrix} "uncorrelated_genes.txt" -t 0.1
+        uncorrelated_genes.py ${matrix} "uncorrelated_genes.txt" -t ${threshold}
         """
 }
 
