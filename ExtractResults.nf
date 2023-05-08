@@ -208,6 +208,7 @@ workflow COLLECT_LOCI {
         gene_reference_ch
         variant_reference_ch
         maf_table_ch
+        inclusion_dir_ch
         loci_ch
 
     main:
@@ -228,7 +229,7 @@ workflow COLLECT_LOCI {
             groupTuple()
 
         // Annotate loci
-        loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch)
+        loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
 
         loci_permuted_combined_ch = ConcatLoci(loci_permuted_ch)
 
@@ -269,7 +270,7 @@ workflow {
 
     // In enabled, run the following sub workflows
     if ( enable_extract_loci ) {
-        COLLECT_LOCI( empirical_parquet_ch,permuted_parquet_ch,genes_buffered_ch,gene_reference_ch,variant_reference_ch,maf_table_ch,LOCI.out )
+        COLLECT_LOCI( empirical_parquet_ch,permuted_parquet_ch,genes_buffered_ch,gene_reference_ch,variant_reference_ch,maf_table_ch,inclusion_step_output_ch,LOCI.out )
     }
 
     if ( enable_cis_trans_coloc ) {
