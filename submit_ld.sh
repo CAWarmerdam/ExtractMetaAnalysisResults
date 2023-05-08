@@ -29,7 +29,7 @@ genome_reference="hg38.genome"
 variant_reference="/gpfs/space/GI/eQTLGen/freeze1/eqtl_mapping/MetaAnalysis/bin/hase/data/1000G-30x.ref.gz"
 gene_reference="gencode.v43.basic.annotation.gff3.gz"
 
-bed="../data/vuckovic_flanked1mb_significant_loci_5mlog9_hg38.bed"
+bed="../data/vuckovic_flanked1mb_na_significant_loci_5mlog9_hg38.bed"
 
 inclusion_step_output="/gpfs/space/GI/eQTLGen/freeze1/InclusionLists/output"
 
