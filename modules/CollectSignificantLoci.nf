@@ -107,7 +107,7 @@ process ExtractLociEmpirical {
     scratch true
 
     input:
-        path eqtls
+        path input
         val genes
         path variantReference
         val loci
@@ -142,7 +142,7 @@ process ExtractLociPermuted {
     scratch true
 
     input:
-        path eqtls
+        path input
         val genes
         path variantReference
         val loci
