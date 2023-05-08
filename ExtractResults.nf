@@ -205,6 +205,7 @@ workflow COLLECT_LOCI {
         empirical_parquet_ch
         permuted_parquet_ch
         genes_buffered_ch
+        uncorrelated_genes_buffered_ch
         gene_reference_ch
         variant_reference_ch
         maf_table_ch
@@ -213,7 +214,7 @@ workflow COLLECT_LOCI {
 
     main:
         // Extract permuted results for all significant loci
-        loci_permuted_ch = ExtractLociPermuted(permuted_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch)
+        loci_permuted_ch = ExtractLociPermuted(permuted_parquet_ch, loci_ch, variant_reference_ch, uncorrelated_genes_buffered_ch)
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -265,12 +266,14 @@ workflow {
     // By default, always calculate gene correlations, and always run getting loci
     GENE_CORRELATIONS(reference_bcf_files_ch,permuted_parquet_ch,variant_reference_ch,genes_buffered_ch)
 
+    uncorrelated_genes_buffered_ch = GENE_CORRELATIONS.out.uncorrelated_genes.collate(gene_chunk_size)
+
     // Extract significant results from the empirical side, and get loci as bed files
     LOCI(empirical_parquet_ch,genes_buffered_ch,bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,variant_flank_size,gene_flank_size)
 
     // In enabled, run the following sub workflows
     if ( enable_extract_loci ) {
-        COLLECT_LOCI( empirical_parquet_ch,permuted_parquet_ch,genes_buffered_ch,gene_reference_ch,variant_reference_ch,maf_table_ch,inclusion_step_output_ch,LOCI.out )
+        COLLECT_LOCI( empirical_parquet_ch,permuted_parquet_ch,genes_buffered_ch,uncorrelated_genes_buffered_ch,gene_reference_ch,variant_reference_ch,maf_table_ch,inclusion_step_output_ch,LOCI.out )
     }
 
     if ( enable_cis_trans_coloc ) {
