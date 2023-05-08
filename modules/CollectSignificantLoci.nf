@@ -2,7 +2,6 @@
 
 process ExtractSignificantResults {
     scratch true
-    publishDir "${params.output}/significant_results", mode: 'copy', overwrite: true
 
     input:
         path input
@@ -116,7 +115,7 @@ process ExtractLociEmpirical {
     output:
         path "extracted*out.csv.gz"
 
-    script:
+    shell:
         gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
@@ -151,7 +150,7 @@ process ExtractLociPermuted {
     output:
         path "extracted*out.csv.gz"
 
-    script:
+    shell:
         gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
