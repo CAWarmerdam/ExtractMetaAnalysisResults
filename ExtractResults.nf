@@ -163,7 +163,7 @@ workflow LOCI {
     main:
         // Get a collection of chunks for which to calculate LD
         significant_results_ch = ExtractSignificantResults(empirical_parquet_ch, genes_buffered_ch, 0.000000000002496)
-            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: 'lenient').collect()
+            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: 'lenient', storeDir: "${params.output}/significant_results").collect()
 
         // Add bp data to loci
         loci_bed_files = AnnotateResults(significant_results_ch, variant_reference_ch, gene_reference_ch)
