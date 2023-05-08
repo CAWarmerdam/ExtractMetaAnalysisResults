@@ -318,7 +318,7 @@ def main(argv=None):
         print("Using loci file '%s' to filter on variants." % args.variants_file)
         if variants_list is not None:
             print("Variant filter already defined. Skipping...")
-        loci = pd.read_csv(args.loci, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
+        loci = pd.read_csv(args.bed_file, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
 
     if variants_list is not None:
         if variant_reference is None:
