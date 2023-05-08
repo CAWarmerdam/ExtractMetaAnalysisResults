@@ -108,9 +108,9 @@ process ExtractLociEmpirical {
 
     input:
         path input
-        val genes
-        path variantReference
         val loci
+        path variantReference
+        val genes
 
     output:
         path "extracted*out.csv.gz"
@@ -143,9 +143,9 @@ process ExtractLociPermuted {
 
     input:
         path input
-        val genes
-        path variantReference
         val loci
+        path variantReference
+        val genes
 
     output:
         path "extracted*out.csv.gz"
