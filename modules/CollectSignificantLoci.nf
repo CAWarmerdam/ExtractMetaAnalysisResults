@@ -126,7 +126,7 @@ process ExtractLociEmpirical {
           cp -r "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
-        echo "${loci}" > "loci.txt"
+        echo "!{loci}" > "loci.txt"
 
         extract_parquet_results.py \
             --input-file tmp_eqlts \
@@ -161,7 +161,7 @@ process ExtractLociPermuted {
           cp -r "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
-        echo "${loci}" > "loci.txt"
+        echo "!{loci}" > "loci.txt"
 
         extract_parquet_results.py \
             --input-file tmp_eqlts \
