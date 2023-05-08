@@ -212,7 +212,7 @@ workflow COLLECT_LOCI {
 
     main:
         // Extract permuted results for all significant loci
-        loci_permuted_ch = ExtractLociPermuted(permuted_parquet_ch, loci_permuted_ch, variant_reference_ch, genes_buffered_ch)
+        loci_permuted_ch = ExtractLociPermuted(permuted_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch)
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -220,7 +220,7 @@ workflow COLLECT_LOCI {
             groupTuple()
 
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
-        loci_empirical_ch = ExtractLociEmpirical(empirical_parquet_ch, loci_empirical_ch, variant_reference_ch, genes_buffered_ch)
+        loci_empirical_ch = ExtractLociEmpirical(empirical_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch)
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
