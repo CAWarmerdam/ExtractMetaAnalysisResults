@@ -79,11 +79,11 @@ def main(argv=None):
 
     corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
 
-    r_squared_matrix = corr_matrix.pow(2)
+    abs_corr_matrix = corr_matrix.abs()
 
-    print(r_squared_matrix)
+    print(abs_corr_matrix)
 
-    uncorrelated_genes = find_uncorr_genes(r_squared_matrix.to_numpy(), names=matrix.columns, threshold=args.threshold)
+    uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(), names=matrix.columns, threshold=args.threshold)
 
     # write the list of uncorrelated genes to a file
     with open(args.output_file, 'w') as f:
