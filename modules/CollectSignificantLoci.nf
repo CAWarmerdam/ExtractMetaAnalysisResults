@@ -126,12 +126,10 @@ process ExtractLociEmpirical {
           cp -r "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
-        echo "!{loci}" > "loci.txt"
-
         extract_parquet_results.py \
             --input-file tmp_eqlts \
             --cols "+p_value" \
-            --bed-file loci.txt \
+            --bed-file "!{loci}" \
             --output-prefix extracted
 
         '''
@@ -161,13 +159,11 @@ process ExtractLociPermuted {
           cp -r "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
-        echo "!{loci}" > "loci.txt"
-
         extract_parquet_results.py \
             --input-file tmp_eqlts \
             --genes !{gene_arg} \
             --cols "z_score" \
-            --bed-file loci.txt \
+            --bed-file "!{loci}" \
             --output-prefix extracted
 
         '''
@@ -185,7 +181,7 @@ process AnnotateLoci {
         path inclusionDir
 
     output:
-        path "annotated.${locus_string}.cvs.gz"
+        tuple val(locus_string), path("annotated.${locus_string}.cvs.gz")
 
     script:
         """
