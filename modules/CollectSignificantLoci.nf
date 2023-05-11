@@ -127,7 +127,7 @@ process ExtractLociEmpirical {
         done <file_matches.txt
 
         extract_parquet_results.py \
-            --input-file tmp_eqlts \
+            --input-file tmp_eqtls \
             --variant-reference !{variantReference} \
             --cols "+p_value" \
             --bed-file "!{loci}" \
@@ -161,7 +161,7 @@ process ExtractLociPermuted {
         done <file_matches.txt
 
         extract_parquet_results.py \
-            --input-file tmp_eqlts \
+            --input-file tmp_eqtls \
             --genes !{gene_arg} \
             --variant-reference !{variantReference} \
             --cols "z_score" \
