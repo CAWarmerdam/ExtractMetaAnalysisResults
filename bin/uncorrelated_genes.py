@@ -71,7 +71,7 @@ def main(argv=None):
 
     if args.gene_correlations is not None:
         print("Loading gene correlations: {}".format(args.gene_correlations))
-        corr_matrix = pd.read_csv(args.gene_correlations)
+        corr_matrix = pd.read_csv(args.gene_correlations, index_col="phenotype")
 
     if args.input_file is not None:
         if corr_matrix is not None:
