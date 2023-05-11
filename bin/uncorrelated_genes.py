@@ -59,33 +59,59 @@ def main(argv=None):
 
     # parse command-line arguments
     parser = argparse.ArgumentParser(description='Calculate correlations between z-scores and find uncorrelated genes')
-    parser.add_argument('input_file', help='Path to the input CSV file')
+    parser.add_argument('input_file', help='Path to the input CSV file',
+                        default=None, required=False)
     parser.add_argument('output_file', help='Path to the output file')
+    parser.add_argument('gene_correlations', help='Path to gene correlations. Will ignore input_file.',
+                        default=None, required=False)
     parser.add_argument('-t', '--threshold', type=float, default=0.5, help='Correlation threshold (default: 0.5)')
     args = parser.parse_args()
 
-    # read the input file into a pandas DataFrame
-    df = pd.read_csv(args.input_file, sep="\t")
+    corr_matrix = None
 
-    print(df)
+    if args.gene_correlations is not None:
+        corr_matrix = pd.read_csv(args.gene_correlations)
 
-    df.drop_duplicates(inplace=True)
+    if args.input_file is not None:
+        if corr_matrix is not None:
+            raise ValueError("Correlation matrix is already defined, skipping Z-score input file")
+        # read the input file into a pandas DataFrame
+        df = pd.read_csv(args.input_file, sep="\t")
 
-    # pivot the DataFrame to get a matrix of z-scores
-    matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
+        print(df)
 
-    print(matrix)
+        df.drop_duplicates(inplace=True)
 
-    # calculate the pairwise correlations between genes
-    corr_matrix = matrix.corr()
+        # pivot the DataFrame to get a matrix of z-scores
+        matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
 
-    corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
+        print(matrix)
+
+        # calculate the pairwise correlations between genes
+        corr_matrix = matrix.corr()
+
+        corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
+
+    if corr_matrix is None:
+        raise ValueError("Correlation matrix has not been defined. "
+                         "Provide either Z-score input file, or precalculated gene-gene correlations")
 
     abs_corr_matrix = corr_matrix.abs()
 
     print(abs_corr_matrix)
 
-    uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(), names=matrix.columns, threshold=args.threshold)
+    uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
+                                           names=corr_matrix.columns, threshold=args.threshold)
+
+    number_of_uncorrelated_genes = dict()
+
+    for threshold in [x / 100.0 for x in range(5, 51, 5)]:
+        print(threshold)
+        uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
+                                               names=corr_matrix.columns, threshold=args.threshold)
+        number_of_uncorrelated_genes[threshold] = len(uncorrelated_genes)
+
+    pd.DataFrame.from_dict(number_of_uncorrelated_genes).to_csv("number_of_uncorrelated_genes.csv")
 
     # write the list of uncorrelated genes to a file
     with open(args.output_file, 'w') as f:
