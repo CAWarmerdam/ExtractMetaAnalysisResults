@@ -70,11 +70,14 @@ def main(argv=None):
     corr_matrix = None
 
     if args.gene_correlations is not None:
+        print("Loading gene correlations: {}".format(args.gene_correlations))
         corr_matrix = pd.read_csv(args.gene_correlations)
 
     if args.input_file is not None:
         if corr_matrix is not None:
             raise ValueError("Correlation matrix is already defined, skipping Z-score input file")
+
+        print("Loading Z-scores: {}".format(args.input_file))
         # read the input file into a pandas DataFrame
         df = pd.read_csv(args.input_file, sep="\t")
 
