@@ -59,10 +59,10 @@ def main(argv=None):
 
     # parse command-line arguments
     parser = argparse.ArgumentParser(description='Calculate correlations between z-scores and find uncorrelated genes')
-    parser.add_argument('input_file', help='Path to the input CSV file',
+    parser.add_argument('--zscores-file', dest='input_file', help='Path to the input CSV file',
                         default=None, required=False)
-    parser.add_argument('output_file', help='Path to the output file')
-    parser.add_argument('gene_correlations', help='Path to gene correlations. Will ignore input_file.',
+    parser.add_argument('--output-file', dest='output_file', help='Path to the output file')
+    parser.add_argument('--gene-correlations', dest='gene_correlations', help='Path to gene correlations. Will ignore input_file.',
                         default=None, required=False)
     parser.add_argument('-t', '--threshold', type=float, default=0.5, help='Correlation threshold (default: 0.5)')
     args = parser.parse_args()
