@@ -69,6 +69,8 @@ def main(argv=None):
 
     print(df)
 
+    df.drop_duplicates(inplace=True)
+
     # pivot the DataFrame to get a matrix of z-scores
     matrix = df.pivot(index='variant', columns='phenotype', values='z_score')
 
