@@ -111,10 +111,12 @@ def main(argv=None):
     for threshold in [x / 100.0 for x in range(5, 51, 5)]:
         print(threshold)
         uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
-                                               names=corr_matrix.columns, threshold=args.threshold)
+                                               names=corr_matrix.columns, threshold=threshold)
         number_of_uncorrelated_genes[threshold] = len(uncorrelated_genes)
 
-    pd.DataFrame.from_dict(number_of_uncorrelated_genes).to_csv("number_of_uncorrelated_genes.csv")
+    pd.DataFrame(
+        number_of_uncorrelated_genes.items(),
+        columns=['Threshold', 'N']).to_csv("number_of_uncorrelated_genes.csv")
 
     # write the list of uncorrelated genes to a file
     with open(args.output_file, 'w') as f:
