@@ -106,23 +106,23 @@ def main(argv=None):
     uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
                                            names=corr_matrix.columns, threshold=args.threshold)
 
+    # write the list of uncorrelated genes to a file
+    with open(args.output_file, 'w') as f:
+        f.write('\n'.join(sorted(uncorrelated_genes)))
+
     number_of_uncorrelated_genes = dict()
     print("Threshold\tN", file=open('number_of_uncorrelated_genes.csv', 'w'))
 
-    for threshold in [x / 100.0 for x in range(5, 31, 5)]:
+    for threshold in [x / 100.0 for x in range(5, 51, 5)]:
         print(threshold)
         uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
                                                names=corr_matrix.columns, threshold=threshold)
         number_of_uncorrelated_genes[threshold] = len(uncorrelated_genes)
         print("{}\t{}".format(threshold, len(uncorrelated_genes)), file=open('number_of_uncorrelated_genes.csv', 'a'))
 
-    pd.DataFrame(
-        number_of_uncorrelated_genes.items(),
-        columns=['Threshold', 'N']).to_csv("number_of_uncorrelated_genes.csv")
-
-    # write the list of uncorrelated genes to a file
-    with open(args.output_file, 'w') as f:
-        f.write('\n'.join(sorted(uncorrelated_genes)))
+        # write the list of uncorrelated genes to a file
+        with open("uncorrelated_genes_N{}.txt".format(len(uncorrelated_genes)), 'w') as f:
+            f.write('\n'.join(uncorrelated_genes))
 
     return 0
 
