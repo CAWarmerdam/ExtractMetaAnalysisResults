@@ -49,7 +49,7 @@ process ExtractLociBed {
         val cols
 
     output:
-        path "extracted*out.csv.gz"
+        path "extracted*out.csv"
 
     shell:
         gene_arg = genes.join(" ")
@@ -84,7 +84,7 @@ process ExtractLociAll {
         val genes
 
     output:
-        path "extracted*out.csv.gz"
+        path "extracted*out.csv"
 
     shell:
         gene_arg = genes.join(" ")
