@@ -15,7 +15,7 @@ process ExtractVariants {
         path "extracted*.out.csv"
 
     shell:
-        variants_arg = (params.fam != '') ? "--variants-file ${variants}" : ""
+        variants_arg = (params.variants != '') ? "--variants-file ${variants}" : ""
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
         mkdir tmp_eqtls
