@@ -13,7 +13,6 @@ process ExtractSignificantResults {
 
     shell:
         gene_arg = genes.join(" ")
-
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
 
         '''
@@ -30,6 +29,8 @@ process ExtractSignificantResults {
             --p-thresh !{p_value} \
             --cols "+p_value" \
             --output-prefix loci
+
+        rm -r tmp_eqtls
         '''
 }
 
@@ -102,75 +103,6 @@ process SelectFollowUpLoci {
         bedtools merge -i "total.flank.sorted.bed" -d 0 -c 4 -o distinct > "selection.bed"
         """
 }
-
-process ExtractLociEmpirical {
-    scratch true
-
-    input:
-        path input
-        val loci
-        path variantReference
-        val genes
-
-    output:
-        path "extracted*out.csv.gz"
-
-    shell:
-        gene_arg = genes.join(" ")
-        phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
-        '''
-        mkdir tmp_eqtls
-        echo "!{phenotypes_formatted}" > file_matches.txt
-
-        while read gene; do
-          cp -r "!{input}/${gene}" tmp_eqtls/
-        done <file_matches.txt
-
-        extract_parquet_results.py \
-            --input-file tmp_eqtls \
-            --variant-reference !{variantReference} \
-            --cols "+p_value" \
-            --bed-file "!{loci}" \
-            --output-prefix extracted
-
-        '''
-}
-
-
-process ExtractLociPermuted {
-    scratch true
-
-    input:
-        path input
-        val loci
-        path variantReference
-        val genes
-
-    output:
-        path "extracted*out.csv.gz"
-
-    shell:
-        gene_arg = genes.join(" ")
-        phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
-        '''
-        mkdir tmp_eqtls
-        echo "!{phenotypes_formatted}" > file_matches.txt
-
-        while read gene; do
-          cp -r "!{input}/${gene}" tmp_eqtls/
-        done <file_matches.txt
-
-        extract_parquet_results.py \
-            --input-file tmp_eqtls \
-            --genes !{gene_arg} \
-            --variant-reference !{variantReference} \
-            --cols "z_score" \
-            --bed-file "!{loci}" \
-            --output-prefix extracted
-
-        '''
-}
-
 
 process AnnotateLoci {
     publishDir "${params.output}/loci_empirical_annotated", mode: 'copy', overwrite: true
