@@ -66,6 +66,12 @@ variants_ch = file(params.variants)
 
 Channel.fromPath(params.maf_table).set { maf_table_ch }
 
+gene_chunk_size=200
+locus_chunk_size=100
+
+extract_variants = params.variants != "NO_FILE"
+extract_loci = params.bed != "NO_FILE"
+
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
 ======================================================="""
@@ -114,6 +120,9 @@ workflow {
     }
 
     if ( extract_loci ) {
+        // Chunk loci
+        bed_file_ch.splitText( by: locus_chunk_size ))
+
         // Extract loci
         loci_extracted_ch = ExtractLociAll(input_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch, '+p_value,+z_score')
             .flatten()
