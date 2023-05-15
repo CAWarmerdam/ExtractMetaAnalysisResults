@@ -117,7 +117,7 @@ workflow {
             groupTuple()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
 
     }
 
@@ -140,7 +140,7 @@ workflow {
 
     if ( extract_loci == false & extract_variants == false ) {
         // Extract all
-        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, '+p_value,+z_score')
+        all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, '+p_value,+z_score')
             .flatten()
             .map { file ->
                    def key = "all"
@@ -148,7 +148,7 @@ workflow {
             groupTuple()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
 
     }
 
