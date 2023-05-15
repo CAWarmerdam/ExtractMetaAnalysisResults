@@ -121,7 +121,7 @@ workflow {
 
     if ( extract_loci ) {
         // Chunk loci
-        bed_file_ch.splitText( by: locus_chunk_size ))
+        bed_file_ch.splitText( by: locus_chunk_size )
 
         // Extract loci
         loci_extracted_ch = ExtractLociAll(input_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch, '+p_value,+z_score')
