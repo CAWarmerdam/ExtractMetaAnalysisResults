@@ -15,6 +15,7 @@ process ExtractVariants {
         path "extracted*.out.csv"
 
     shell:
+        variants_arg = (params.fam != '') ? "--variants-file ${variants}" : ""
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
         mkdir tmp_eqtls
@@ -27,7 +28,7 @@ process ExtractVariants {
         extract_parquet_results.py \
             --input-file tmp_eqtls \
             --genes !{genes.join(' ')} \
-            --variants-file !{variants} \
+            !{variants_arg} \
             --variant-reference !{variant_reference} \
             --output-prefix extracted \
             --cols '${cols}'

@@ -14,7 +14,6 @@ process ExtractSignificantResults {
     shell:
         gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
-
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt

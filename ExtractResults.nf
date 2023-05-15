@@ -92,6 +92,8 @@ summary['Genome reference']                         = params.genome_reference
 summary['Variant reference']                        = params.variant_reference
 summary['Gene reference']                           = params.gene_reference
 summary['Gene list']                                = params.genes
+summary['Extract loci']                             = extract_loci
+summary['Extract variants']                         = extract_variants
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
@@ -133,6 +135,20 @@ workflow {
 
         // Annotate loci
         loci_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+
+    }
+
+    if ( extract_loci == false & extract_variants == false ) {
+        // Extract all
+        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, '+p_value,+z_score')
+            .flatten()
+            .map { file ->
+                   def key = "all"
+                   return tuple(key, file) }
+            groupTuple()
+
+        // Annotate loci
+        variants_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
 
     }
 
