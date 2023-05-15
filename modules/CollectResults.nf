@@ -31,7 +31,7 @@ process ExtractVariants {
             !{variants_arg} \
             --variant-reference !{variant_reference} \
             --output-prefix extracted \
-            --cols '${cols}'
+            --cols '!{cols}'
 
         rm -r tmp_eqtls
         '''
