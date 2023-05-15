@@ -148,7 +148,7 @@ workflow {
             groupTuple()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_step_output_ch)
 
     }
 
