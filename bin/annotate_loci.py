@@ -57,9 +57,9 @@ class MafCalculator:
         self.maf_table = maf_table[self.overview_df.index]
 
         self.overview_df['snp_inclusion_path'] = (
-            self.overview_df.index.map(lambda name: os.path.join(variant_inclusion_format % name)))
+            self.overview_df.index.map(lambda name: os.path.join(inclusion_path, variant_inclusion_format % name)))
         self.overview_df['gene_inclusion_path'] = (
-            self.overview_df.index.map(lambda name: os.path.join(gene_inclusion_format % name)))
+            self.overview_df.index.map(lambda name: os.path.join(inclusion_path, gene_inclusion_format % name)))
 
         self.snp_inclusion_df = self.load_inclusion_df('snp_inclusion_path')
         self.gene_inclusion_df = self.load_inclusion_df('gene_inclusion_path')
