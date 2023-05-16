@@ -159,7 +159,7 @@ def main(argv=None):
                         help='Path to the table containing eQTL results')
     parser.add_argument('--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
-    parser.add_argument('--gene-ggf', dest='gene_ggf', required=True,
+    parser.add_argument('--gene-gff', dest='gene_ggf', required=True,
                         help='Path to the Gencode GFF3 file')
     parser.add_argument('--maf-table', dest='maf', required=True,
                         help='Path to the table containing minor allele frequencies')
@@ -202,7 +202,7 @@ def main(argv=None):
 
     print("Loading gene annotations from '{}'".format(args.gene_gff))
 
-    gencode_parser = GencodeParser(args.gene_ggf)
+    gencode_parser = GencodeParser(args.gene_gff)
     gene_dataframe = gencode_parser.df
     eqtls = pd.read_csv(args.input_file, sep = '\t')
 
