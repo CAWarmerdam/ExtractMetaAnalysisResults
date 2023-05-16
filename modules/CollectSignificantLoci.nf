@@ -119,7 +119,7 @@ process AnnotateLoci {
     script:
         """
         head -n 1 ${files[0]} > concatenated.${locus_string}.csv
-        tail -n +2 ${files[1..-1].join(' ')} >> concatenated.${locus_string}.csv
+        tail -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
 
         annotate_loci.py \
             --input-file collected.csv \
@@ -143,7 +143,7 @@ process ConcatLoci {
     script:
         """
         head -n 1 ${files[0]} > concatenated.${locus_string}.csv
-        tail -n +2 ${files[1..-1].join(' ')} >> concatenated.${locus_string}.csv
+        tail -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
         gzip -f concatenated.${locus_string}.csv
         """
 }
