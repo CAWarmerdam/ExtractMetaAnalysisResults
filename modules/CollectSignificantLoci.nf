@@ -122,7 +122,7 @@ process AnnotateLoci {
         tail -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
 
         annotate_loci.py \
-            --input-file collected.csv \
+            --input-file concatenated.${locus_string}.csv \
             --variant-reference ${variantReference} \
             --gene-ggf ${geneReference} \
             --maf-table ${mafTable} \

@@ -118,7 +118,7 @@ class MafCalculator:
         variant_maf_weighted = variant_maf.mul(self.overview_df.loc[variant_maf.columns, "N"])
 
         # Now sum the weighted MAFs, and divide this by the total sample size
-        return variant_maf_weighted.iloc[combined_presence].sum(axis=0) / self.overview_df["N"].sum(axis=1)
+        return variant_maf_weighted.loc[combined_presence].sum(axis=0) / self.overview_df["N"].sum(axis=1)
 
 
 class GencodeParser:
