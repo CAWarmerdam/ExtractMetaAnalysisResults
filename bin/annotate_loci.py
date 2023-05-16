@@ -159,7 +159,7 @@ def main(argv=None):
                         help='Path to the table containing eQTL results')
     parser.add_argument('--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
-    parser.add_argument('--gene-gff', dest='gene_ggf', required=True,
+    parser.add_argument('--gene-gff', dest='gene_gff', required=True,
                         help='Path to the Gencode GFF3 file')
     parser.add_argument('--maf-table', dest='maf', required=True,
                         help='Path to the table containing minor allele frequencies')
