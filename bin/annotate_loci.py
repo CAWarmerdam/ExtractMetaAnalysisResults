@@ -84,14 +84,17 @@ class MafCalculator:
             gene_variant_df
             .merge(self.snp_inclusion_df, right_index=True, left_on='variant', how='left')
             .set_index(['phenotype', 'variant']))
+        print(variant_presence.head())
         # Reformat the presence of the genes in the given dataframe
         gene_presence = (
             gene_variant_df
             .merge(self.gene_inclusion_df, right_index=True, left_on='phenotype', how='left')
             .set_index(['phenotype', 'variant']))
+        print(gene_presence.head())
         # Now that the tables displaying presence have both the same index, we can determine
         # for each combination if it is present or not.
         combined_presence = variant_presence & gene_presence
+        print(combined_presence)
         # Now, reformat the maf table to also be according to this format.
         variant_maf = (
             gene_variant_df
