@@ -178,7 +178,7 @@ def main(argv=None):
 
     maf_dataframe = (
         pd.read_table(args.maf)
-        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR", "Allele" "OtherAllele"], axis=1)
+        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR", "Allele", "OtherAllele"], axis=1)
         .rename({"ID": "variant"}, axis=1)
         .set_index("variant"))
 
