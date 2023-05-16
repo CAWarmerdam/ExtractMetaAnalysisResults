@@ -169,6 +169,7 @@ def main(argv=None):
 
     args = parser.parse_args(argv[1:])
     print(args)
+    print("Loading variant reference from '{}'".format(args.variant_reference))
 
     variant_reference = (
         pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
@@ -176,15 +177,29 @@ def main(argv=None):
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
                  "str_allele1": "allele", "str_allele2": "other_allele"}, axis=1))
 
+    print("Variant reference loaded:")
+    print(variant_reference.head())
+
+    print("Loading minor allele frequencies from '{}'".format(args.maf))
+
     maf_dataframe = (
         pd.read_table(args.maf)
         .drop(["MedianMaf", "CombinedMaf", "POS", "CHR", "Allele", "OtherAllele"], axis=1)
         .rename({"ID": "variant"}, axis=1)
         .set_index("variant"))
 
+    print("Minor allele frequencies loaded:")
+    print(maf_dataframe.head())
+
+    print("Initiating MAF calculator...")
+
     maf_calculator = MafCalculator(
         inclusion_path=args.inclusion_path,
         maf_table=maf_dataframe)
+
+    print("MAF calculator initiated!")
+
+    print("Loading gene annotations from '{}'".format(args.gene_gff))
 
     gencode_parser = GencodeParser(args.gene_ggf)
     gene_dataframe = gencode_parser.df
