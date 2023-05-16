@@ -51,72 +51,54 @@ class MafCalculator:
                  table_name="filter_logs_full.log",
                  variant_inclusion_format="%s_SnpsToInclude.txt",
                  gene_inclusion_format="%s_GenesToInclude.txt"):
-
         self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
         self.overview_df.set_index('Dataset', inplace=True)
         self.maf_table = maf_table[self.overview_df.index]
-
         self.overview_df['snp_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, variant_inclusion_format % name)))
         self.overview_df['gene_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, gene_inclusion_format % name)))
-
         self.snp_inclusion_df = self.load_inclusion_df('snp_inclusion_path')
         self.gene_inclusion_df = self.load_inclusion_df('gene_inclusion_path')
-
     def load_inclusion_df(self, column):
         # Create an empty dictionary to store dataframes
         dfs = {}
-
         # Generate dict of inclusion paths
         inclusion_paths = self.overview_df[column].to_dict()
-
         # Iterate over files in the directory
         for cohort, filepath in inclusion_paths.items():
-
             df = pd.read_csv(filepath)
-
+            df[cohort] = 1
             # Set the index to the 'ID' column
             df.set_index('ID', inplace=True)
-
             # Add the dataframe to the dictionary
             dfs[cohort] = df
-
         # Merge the dataframes on their index
-        merged_df = pd.concat(dfs.values(), axis=1, keys=dfs.keys())
-
+        merged_df = pd.concat(dfs.values(), axis=1)
         # Replace NaN values with 0 and convert to boolean
         merged_df = merged_df.fillna(0).astype(bool)
-
         return merged_df
-
     def calculate_maf(self, gene_variant_df):
-
         # Reformat the presence of the variants in the given dataframe
         variant_presence = (
             gene_variant_df
             .merge(self.snp_inclusion_df, right_index=True, left_on='variant', how='left')
             .set_index(['phenotype', 'variant']))
-
         # Reformat the presence of the genes in the given dataframe
         gene_presence = (
             gene_variant_df
             .merge(self.gene_inclusion_df, right_index=True, left_on='phenotype', how='left')
             .set_index(['phenotype', 'variant']))
-
         # Now that the tables displaying presence have both the same index, we can determine
         # for each combination if it is present or not.
         combined_presence = variant_presence & gene_presence
-
         # Now, reformat the maf table to also be according to this format.
         variant_maf = (
             gene_variant_df
             .merge(self.maf_table, right_index=True, left_on='variant', how='left')
             .set_index(['phenotype', 'variant']))
-
         # Now, for each cohort in the maf table, multiply all MAFs by the sample size
         variant_maf_weighted = variant_maf.mul(self.overview_df.loc[variant_maf.columns, "N"])
-
         # Now sum the weighted MAFs, and divide this by the total sample size
         return variant_maf_weighted.loc[combined_presence].sum(axis=0) / self.overview_df["N"].sum(axis=1)
 
@@ -125,7 +107,6 @@ class GencodeParser:
     def __init__(self, filename):
         self.filename = filename
         self.df = self.parse()
-
     def parse(self):
         genes = []
         with gzip.open(self.filename, 'rt') as f:
