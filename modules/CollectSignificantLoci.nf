@@ -124,7 +124,7 @@ process AnnotateLoci {
         annotate_loci.py \
             --input-file concatenated.${locus_string}.csv \
             --variant-reference ${variantReference} \
-            --gene-ggf ${geneReference} \
+            --gene-gff ${geneReference} \
             --maf-table ${mafTable} \
             --inclusion-path ${inclusionDir} \
             --out-prefix annotated.${locus_string}
