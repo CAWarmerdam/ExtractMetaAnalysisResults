@@ -162,7 +162,7 @@ def main(argv=None):
                         help='Path to the Gencode GFF3 file')
     parser.add_argument('--maf-table', dest='maf', required=True,
                         help='Path to the table containing minor allele frequencies')
-    parser.add_argument('--inclusion_path', dest='inclusion_path', required=True,
+    parser.add_argument('--inclusion-path', dest='inclusion_path', required=True,
                         help='Inclusion_path')
     parser.add_argument('--out-prefix', dest='out_prefix', required=True,
                         help='Prefix to use for output file names')
