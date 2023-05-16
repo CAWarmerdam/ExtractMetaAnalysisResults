@@ -84,13 +84,13 @@ class MafCalculator:
             gene_variant_df
             .merge(self.snp_inclusion_df, right_index=True, left_on='variant', how='left')
             .set_index(['phenotype', 'variant']))
-        print(variant_presence.head())
+        print(variant_presence)
         # Reformat the presence of the genes in the given dataframe
         gene_presence = (
             gene_variant_df
             .merge(self.gene_inclusion_df, right_index=True, left_on='phenotype', how='left')
             .set_index(['phenotype', 'variant']))
-        print(gene_presence.head())
+        print(gene_presence)
         # Now that the tables displaying presence have both the same index, we can determine
         # for each combination if it is present or not.
         combined_presence = variant_presence & gene_presence
@@ -102,6 +102,7 @@ class MafCalculator:
             .set_index(['phenotype', 'variant']))
         # Now, for each cohort in the maf table, multiply all MAFs by the sample size
         variant_maf_weighted = variant_maf.mul(self.overview_df.loc[variant_maf.columns, "N"])
+        print(variant_maf_weighted)
         # Now sum the weighted MAFs, and divide this by the total sample size
         return variant_maf_weighted.loc[combined_presence].sum(axis=0) / self.overview_df["N"].sum(axis=1)
 
