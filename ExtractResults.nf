@@ -66,7 +66,7 @@ variants_ch = file(params.variants)
 
 Channel.fromPath(params.maf_table).set { maf_table_ch }
 
-gene_chunk_size=200
+gene_chunk_size=1
 locus_chunk_size=100
 
 extract_variants = params.variants != "NO_FILE"
