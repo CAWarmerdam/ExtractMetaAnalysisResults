@@ -65,7 +65,7 @@ inclusion_step_output_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.bed)
 variants_ch = file(params.variants)
 
-Channel.fromPath(params.maf_table).set { maf_table_ch }
+Channel.fromPath(params.maf_table).collect().set { maf_table_ch }
 
 gene_chunk_size=1
 locus_chunk_size=100
