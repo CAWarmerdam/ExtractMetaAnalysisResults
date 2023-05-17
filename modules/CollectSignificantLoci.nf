@@ -114,7 +114,7 @@ process AnnotateLoci {
         path inclusionDir
 
     output:
-        tuple val(locus_string), path("annotated.${locus_string}.cvs.gz")
+        tuple val(locus_string), path("annotated.${locus_string}.csv.gz")
 
     script:
         """

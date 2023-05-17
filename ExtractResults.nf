@@ -47,6 +47,7 @@ params.maf_table = 'NO_FILE'
 params.bed = 'NO_FILE'
 params.variants = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
+params.output
 
 if (params.help){
     helpmessage()
@@ -141,9 +142,11 @@ workflow {
     if ( extract_loci == false & extract_variants == false ) {
         // Extract all
         all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, '+p_value,+z_score')
+            .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
                    return tuple(key, file) }
+            .groupTuple()
 
         // Annotate loci
         variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_step_output_ch)
