@@ -146,7 +146,7 @@ workflow {
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
                    return tuple(key, file) }
-            .groupTuple()
+            .groupTuple().view()
 
         // Annotate loci
         variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_step_output_ch)
