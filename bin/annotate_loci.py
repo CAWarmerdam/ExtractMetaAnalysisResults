@@ -104,7 +104,10 @@ class MafCalculator:
         variant_maf_weighted = variant_maf.mul(self.overview_df.loc[variant_maf.columns, "N"])
         print(variant_maf_weighted)
         # Now sum the weighted MAFs, and divide this by the total sample size
-        return variant_maf_weighted.loc[combined_presence].sum(axis=0) / self.overview_df["N"].sum(axis=1)
+        maf = (variant_maf_weighted.where(combined_presence).sum(axis=1)
+               / combined_presence.dot(self.overview_df["N"]))
+        # Now return this
+        return maf
 
 
 class GencodeParser:
@@ -159,7 +162,7 @@ def main(argv=None):
 
     variant_reference = (
         pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
-        .drop(["allele1", "allele2", "str_allele2"], axis=1)
+        .drop(["allele1", "allele2"], axis=1)
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
                  "str_allele1": "allele", "str_allele2": "other_allele"}, axis=1))
 
@@ -187,19 +190,23 @@ def main(argv=None):
 
     print("Loading gene annotations from '{}'".format(args.gene_gff))
 
-    gencode_parser = GencodeParser(args.gene_gff)
-    gene_dataframe = gencode_parser.df
+    # gencode_parser = GencodeParser(args.gene_gff)
+    # gene_dataframe = gencode_parser.df
     eqtls = pd.read_csv(args.input_file, sep = '\t')
 
     # Perform method
+    # eqtls_annotated = (
+    #     eqtls
+    #     .merge(variant_reference, how="left", on="variant")
+    #     .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
+
     eqtls_annotated = (
-        eqtls
-        .merge(variant_reference, how="left", on="variant")
-        .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
+        eqtls.merge(variant_reference, how="left", on="variant"))
 
-    eqtls_annotated['maf'] = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
+    maf = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
+    eqtls_annotated['maf'] = maf.values
 
-    eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), sep="\t")
+    eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), sep="\t", index=False)
     # Output
     return 0
 

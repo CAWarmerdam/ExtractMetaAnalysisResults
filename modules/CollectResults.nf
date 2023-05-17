@@ -17,6 +17,7 @@ process ExtractVariants {
     shell:
         variants_arg = (variants.name != 'NO_FILE') ? "--variants-file ${variants}" : ""
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
+        prefix = (genes.size() == 1) ? genes.collect { "extracted.$it" }.join("") : "extracted"
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
@@ -30,7 +31,7 @@ process ExtractVariants {
             --genes !{genes.join(' ')} \
             !{variants_arg} \
             --variant-reference !{variant_reference} \
-            --output-prefix extracted \
+            --output-prefix !{prefix} \
             --cols '!{cols}'
 
         rm -r tmp_eqtls
