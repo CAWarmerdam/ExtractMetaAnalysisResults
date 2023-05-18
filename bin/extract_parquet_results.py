@@ -142,8 +142,6 @@ class QtlResultProcessor:
 
         filters = self.get_filters()
 
-        print("Using filters: {}".format(filters))
-
         dataset = pq.ParquetDataset(
             self.path, validate_schema=True,
             filters=filters)
