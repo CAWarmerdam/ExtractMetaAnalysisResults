@@ -69,7 +69,7 @@ Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 inclusion_step_output_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.background_bed)
 
-Channel.fromPath(params.maf_table).set { maf_table_ch }
+Channel.fromPath(params.maf_table).collect().set { maf_table_ch }
 
 variant_flank_size=250000
 gene_flank_size=1000000
