@@ -195,7 +195,7 @@ workflow CALCULATE_LD {
         // Calculate LD for all loci
         ld_ch = CalculateLdMatrix(
             permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch,
-            loci_ch.splitText( by: locus_chunk_size )
+            loci_ch.splitText( by: locus_chunk_size ))
 
     emit:
         ld_ch
