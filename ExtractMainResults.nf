@@ -228,7 +228,7 @@ workflow COLLECT_LOCI {
         loci_gene_ch = loci_ch.splitCsv( header: ['chrom', 'start', 'stop', 'names', 'type'], sep: '\t')
             .map { locus ->
                    def genes = locus.names.split(',').intersect(all_genes)
-                   tuple( [locus.chrom, locus.start, locus.stop, genes.join(',')].join(''\t'), genes )
+                   tuple( [locus.chrom, locus.start, locus.stop, genes.join(',')].join('\t'), genes )
                    }
 
         genes_buffered_ch.flatten()
