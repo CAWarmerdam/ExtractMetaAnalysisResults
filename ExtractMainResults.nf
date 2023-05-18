@@ -195,7 +195,7 @@ workflow CALCULATE_LD {
         // Calculate LD for all loci
         ld_ch = CalculateLdMatrix(
             permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch,
-            loci_ch.splitText( by: locus_chunk_size ))
+            loci_ch.splitText( by: locus_chunk_size )
 
     emit:
         ld_ch
@@ -222,8 +222,19 @@ workflow COLLECT_LOCI {
                    return tuple(key, file) }
             groupTuple()
 
+        all_genes = genes_buffered_ch.flatten()
+
+        // Collect, per locus, the intersect of all genes and the genes in the locus
+        loci_gene_ch = loci_ch.splitCsv( header: ['chrom', 'start', 'stop', 'names', 'type'], sep: '\t')
+            .map { locus ->
+                   def genes = locus.names.split(',').intersect(all_genes)
+                   tuple( [locus.chrom, locus.start, locus.stop, genes.join(',')].join(''\t'), genes )
+                   }
+
+        genes_buffered_ch.flatten()
+
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
-        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch, '+p_value')
+        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_gene_ch, variant_reference_ch, '+p_value')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)

@@ -44,9 +44,8 @@ process ExtractLociBed {
 
     input:
         path input
-        val loci
+        tuple val(locus), val(genes)
         path variantReference
-        val genes
         val cols
 
     output:
@@ -63,11 +62,13 @@ process ExtractLociBed {
           cp -r "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
+        echo "!{locus}" > locus.txt
+
         extract_parquet_results.py \
             --input-file tmp_eqtls \
             --variant-reference !{variantReference} \
             --cols '!{cols}' \
-            --bed-file "!{loci}" \
+            --bed-file locus.txt \
             --output-prefix extracted
 
 
