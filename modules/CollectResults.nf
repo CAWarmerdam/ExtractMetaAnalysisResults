@@ -83,6 +83,7 @@ process ExtractLociAll {
         val loci
         path variantReference
         val genes
+        val cols
 
     output:
         path "extracted*out.csv"
