@@ -227,7 +227,7 @@ workflow COLLECT_LOCI {
         // Collect, per locus, the intersect of all genes and the genes in the locus
         loci_gene_ch = loci_ch.splitCsv( header: ['chrom', 'start', 'stop', 'names', 'type'], sep: '\t')
             .map { locus ->
-                   def genes = locus.names.split(',').toList().intersect(all_genes)
+                   def genes = (locus.names.split(',') as List).intersect(all_genes)
                    tuple( [locus.chrom, locus.start, locus.stop, genes.join(',')].join('\t'), genes )
                    }
 
