@@ -227,9 +227,11 @@ workflow COLLECT_LOCI {
         // Collect, per locus, the intersect of all genes and the genes in the locus
         loci_gene_ch = loci_ch.splitCsv( header: ['chrom', 'start', 'stop', 'names', 'type'], sep: '\t')
             .map { locus ->
-                   def genes = (locus.names.split(',').toList())
+                   def genes = (locus.names.split(',').toList().findAll { it in all_genes })
                    tuple( [locus.chrom, locus.start, locus.stop, genes.join(',')].join('\t'), genes )
-                   }.view()
+                   }
+            .filter { locus -> !locus[1].isEmpty() }
+            .view()
 
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
         loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_gene_ch, variant_reference_ch, '+p_value')
