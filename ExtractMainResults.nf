@@ -143,7 +143,7 @@ workflow GENE_CORRELATIONS {
         zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true, cache: 'lenient').collect()
 
         // Calculate gene gene matrix correlations
-        uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, 0.05)
+        uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, 0.2)
 
     emit:
         gene_correlations = uncorrelated_genes_out.correlations
