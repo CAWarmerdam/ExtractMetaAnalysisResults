@@ -58,6 +58,7 @@ process IntersectLoci {
         val variantFlankSize
         path bedFile
         path genomeRef
+        path cisTransGenes
 
     output:
         path "merged.bed"
@@ -68,7 +69,9 @@ process IntersectLoci {
 
         // Calculate flanks for genes, calculate flanks for snps, calculate union.
         """
-        bedtools slop -i "${variantLoci}" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
+        grep -F -f ${cisTransGenes} "${variantLoci}" > "filtered_variant_loci.bed"
+
+        bedtools slop -i "filtered_variant_loci.bed" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
 
         cat "variant_loci.flank.bed" ${bed} > "total.flank.bed"
 
@@ -80,27 +83,38 @@ process IntersectLoci {
 
 process SelectFollowUpLoci {
     input:
-        path variantLoci
+        path variantBed
         val variantFlankSize
-        path geneLoci
-        val geneFlankSize
-        path bedFile
         path genomeRef
+        val genes
 
     output:
-        path "selection.bed"
+        path "cis_trans_intersection.bed"
 
-    script:
-        // Flank loci and find the union between them, filtering on combinations where EITHER of the below is true:
-        // 1. There is a cis genes involved
-        // 2. There is a locus involved from the supplementary bed file
-        """
-        cat "variant_loci.flank.bed" ${bed} > "total.flank.bed"
+    shell:
+        // Merge loci per gene
+        gene_arg = genes.join("\n")
+        '''
+        echo "!{gene_arg}" > genes.txt
 
-        # Get the union of the two bed files (including flanks)
-        bedtools sort -i "total.flank.bed" > "total.flank.sorted.bed"
-        bedtools merge -i "total.flank.sorted.bed" -d 0 -c 4 -o distinct > "selection.bed"
-        """
+        touch cis_loci_merged_per_gene.bed
+        touch trans_loci_merged_per_gene.bed
+
+        grep "True" !{variantBed} > cis_effects.bed
+        grep "False" !{variantBed} > trans_effects.bed
+
+        while read g; do
+          echo $g
+          grep "$g" cis_effects.bed | bedtools merge -d !{variantFlankSize} >> cis_loci_merged_per_gene.bed
+          grep "$g" trans_effects.bed | bedtools merge -d !{variantFlankSize} >> trans_loci_merged_per_gene.bed
+        done <genes.txt
+
+        bedtools intersect \
+          -a cis_loci_merged_per_gene.bed \
+          -b trans_loci_merged_per_gene.bed \
+          -wa -wb | \
+        awk -F'\t' 'BEGIN {OFS = FS} { printf "%s\n%s",$4,$9; }' > cis_trans_intersection_genes.bed
+        '''
 }
 
 process AnnotateLoci {

@@ -169,18 +169,16 @@ workflow LOCI {
         // Add bp data to loci
         loci_bed_files = AnnotateResults(significant_results_ch, variant_reference_ch, gene_reference_ch)
 
+        // Merge for each gene the loci given a window
+        cis_trans_genes_ch = SelectFollowUpLoci(
+            loci_bed_files, variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten()).collect()
+
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
-            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch)
-
-        // Flank loci and find the union between them, filtering on combinations where EITHER of the below is true:
-        // 1. There is a cis genes involved
-        // 2. There is a locus involved from the supplementary bed file
-        //loci_ch_pruned = SelectFollowUpLoci(
-        //    loci_bed_files.variant_loci, variant_flank_size,
-        //    loci_bed_files.gene_loci, gene_flank_size, bed_file_ch, genome_ref_ch)
+            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch)
     emit:
-        loci_ch
+        merged = loci_ch
+        cis_trans_genes = cis_trans_genes_ch
 }
 
 workflow CALCULATE_LD {
@@ -205,17 +203,17 @@ workflow COLLECT_LOCI {
     take:
         empirical_parquet_ch
         permuted_parquet_ch
-        genes_buffered_ch
+        cis_trans_genes_buffered_ch
         uncorrelated_genes_buffered_ch
         gene_reference_ch
         variant_reference_ch
         maf_table_ch
         inclusion_dir_ch
-        loci_ch
+        loci_merged_ch
 
     main:
         // Extract permuted results for all significant loci
-        loci_permuted_ch = ExtractLociAll(permuted_parquet_ch, loci_ch.collect(), variant_reference_ch, uncorrelated_genes_buffered_ch, 'z_score')
+        loci_permuted_ch = ExtractLociAll(permuted_parquet_ch, loci_merged_ch.collect(), variant_reference_ch, uncorrelated_genes_buffered_ch, 'z_score')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -223,7 +221,7 @@ workflow COLLECT_LOCI {
             groupTuple()
 
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
-        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_ch.collect(), variant_reference_ch, genes_buffered_ch, '+p_value')
+        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_merged_ch.collect(), variant_reference_ch, cis_trans_genes_buffered_ch, '+p_value')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -260,9 +258,9 @@ workflow {
     if ( enable_extract_loci ) {
         COLLECT_LOCI(
             empirical_parquet_ch,permuted_parquet_ch,
-            genes_buffered_ch,uncorrelated_genes_buffered_ch,
+            LOCI.out.cis_trans_genes,uncorrelated_genes_buffered_ch,
             gene_reference_ch,variant_reference_ch,maf_table_ch,
-            inclusion_step_output_ch,LOCI.out )
+            inclusion_step_output_ch,LOCI.out.merged)
     }
 
     if ( enable_cis_trans_coloc ) {
