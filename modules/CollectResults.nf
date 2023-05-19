@@ -44,8 +44,9 @@ process ExtractLociBed {
 
     input:
         path input
-        tuple val(locus), val(genes)
+        val locus
         path variantReference
+        val genes
         val cols
 
     output:
