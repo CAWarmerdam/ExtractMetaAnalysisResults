@@ -164,14 +164,14 @@ workflow LOCI {
     main:
         // Get a collection of chunks for which to calculate LD
         significant_results_ch = ExtractSignificantResults(empirical_parquet_ch, genes_buffered_ch, 0.000000000002496)
-            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: 'lenient', storeDir: "${params.output}/significant_results").collect()
+            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: true, storeDir: "${params.output}/significant_results").collect()
 
         // Add bp data to loci
         loci_bed_files = AnnotateResults(significant_results_ch, variant_reference_ch, gene_reference_ch)
 
         // Merge for each gene the loci given a window
         cis_trans_genes_ch = SelectFollowUpLoci(
-            loci_bed_files, variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten()).collect()
+            loci_bed_files.collect(), variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten().collect()).collect()
 
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
