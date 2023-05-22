@@ -176,9 +176,12 @@ workflow LOCI {
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
             loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch)
+
+        follow_up_genes_ch = cis_trans_genes_ch.splitCsv(header: ['gene']).map { row -> "${row.gene}" }
+
     emit:
         merged = loci_ch
-        cis_trans_genes = cis_trans_genes_ch
+        genes = follow_up_genes_ch
 }
 
 workflow CALCULATE_LD {
@@ -254,11 +257,13 @@ workflow {
         bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,
         variant_flank_size,gene_flank_size)
 
+    follow_up_genes_ch = LOCI.out.genes.collate(gene_chunk_size)
+
     // In enabled, run the following sub workflows
     if ( enable_extract_loci ) {
         COLLECT_LOCI(
             empirical_parquet_ch,permuted_parquet_ch,
-            LOCI.out.cis_trans_genes,uncorrelated_genes_buffered_ch,
+            follow_up_genes_ch,uncorrelated_genes_buffered_ch,
             gene_reference_ch,variant_reference_ch,maf_table_ch,
             inclusion_step_output_ch,LOCI.out.merged)
     }
