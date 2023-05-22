@@ -134,7 +134,7 @@ workflow GENE_CORRELATIONS {
     main:
         // Obtain a list of uncorrelated variants
         uncorrelated_variants_ch = GetUncorrelatedVariants(reference_bcf_files_ch)
-            .collectFile(name: 'merged.prune.in', newLine: true).collect()
+            .collectFile(name: 'merged.prune.in', newLine: true, cache: 'lenient').collect()
 
         // Calculate the Z-scores for each gene list in the genes channel
         z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch)
