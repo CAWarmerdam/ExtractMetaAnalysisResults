@@ -175,9 +175,10 @@ workflow LOCI {
 
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
-            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch)
+            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch).collect()
 
         follow_up_genes_ch = cis_trans_genes_ch.splitCsv(header: ['gene']).map { row -> "${row.gene}" }
+            .flatten().unique().collect()
 
     emit:
         merged = loci_ch
@@ -216,7 +217,7 @@ workflow COLLECT_LOCI {
 
     main:
         // Extract permuted results for all significant loci
-        loci_permuted_ch = ExtractLociAll(permuted_parquet_ch, loci_merged_ch.collect(), variant_reference_ch, uncorrelated_genes_buffered_ch, 'z_score')
+        loci_permuted_ch = ExtractLociAll(permuted_parquet_ch, loci_merged_ch, variant_reference_ch, uncorrelated_genes_buffered_ch, 'z_score')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -224,7 +225,7 @@ workflow COLLECT_LOCI {
             groupTuple()
 
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
-        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_merged_ch.collect(), variant_reference_ch, cis_trans_genes_buffered_ch, '+p_value')
+        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_merged_ch, variant_reference_ch, cis_trans_genes_buffered_ch, '+p_value')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)

@@ -47,7 +47,7 @@ if (params.help){
 
 //Default parameters
 Channel.fromPath(params.extracted_permuted_loci).collect().set { permuted_loci_ch }
-Channel.fromPath(params.loci_bed).collect().splitCsv(by: 10, header: ['chromosome', 'start', 'end', 'name']).set {loci_ch}
+Channel.fromPath(params.loci_bed).collect().splitCsv(header: ['chromosome', 'start', 'end', 'name', 'cis']).set {loci_ch}
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
