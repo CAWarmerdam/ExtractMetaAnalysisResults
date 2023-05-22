@@ -2,7 +2,7 @@
 
 
 process CalculateZScores {
-    cache: 'lenient'
+    cache 'lenient'
     scratch true
 
     input:
