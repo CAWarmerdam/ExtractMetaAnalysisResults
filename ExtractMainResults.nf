@@ -178,7 +178,7 @@ workflow LOCI {
             loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch).collect()
 
         follow_up_genes_ch = cis_trans_genes_ch.splitCsv(header: ['gene']).map { row -> "${row.gene}" }
-            .flatten().unique().collect()
+            .unique().collect().view()
 
     emit:
         merged = loci_ch

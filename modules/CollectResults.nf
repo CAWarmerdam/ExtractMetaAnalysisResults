@@ -44,7 +44,7 @@ process ExtractLociBed {
 
     input:
         path input
-        val locus
+        path locus
         path variantReference
         val genes
         val cols
@@ -53,7 +53,6 @@ process ExtractLociBed {
         path "extracted*out.csv"
 
     shell:
-        gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
         mkdir tmp_eqtls
@@ -63,13 +62,12 @@ process ExtractLociBed {
           cp -r "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
-        echo "!{locus}" > locus.txt
-
         extract_parquet_results.py \
             --input-file tmp_eqtls \
             --variant-reference !{variantReference} \
+            --genes !{genes.join(' ')} \
             --cols '!{cols}' \
-            --bed-file locus.txt \
+            --bed-file !{locus} \
             --output-prefix extracted
 
 
@@ -82,7 +80,7 @@ process ExtractLociAll {
 
     input:
         path input
-        val loci
+        path locus
         path variantReference
         val genes
         val cols
@@ -91,7 +89,6 @@ process ExtractLociAll {
         path "extracted*out.csv"
 
     shell:
-        gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
         mkdir tmp_eqtls
@@ -103,11 +100,10 @@ process ExtractLociAll {
 
         extract_parquet_results.py \
             --input-file tmp_eqtls \
-            --genes !{gene_arg} \
             --variant-reference !{variantReference} \
+            --genes !{genes.join(' ')} \
             --cols '!{cols}' \
-            --bed-file "!{loci}" \
+            --bed-file !{locus} \
             --output-prefix extracted
-
         '''
 }
