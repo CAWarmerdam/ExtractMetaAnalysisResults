@@ -177,8 +177,8 @@ workflow LOCI {
         loci_ch = IntersectLoci(
             loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch).collect()
 
-        follow_up_genes_ch = cis_trans_genes_ch.splitCsv(header: ['gene']).map { row -> "${row.gene}" }
-            .unique()
+        follow_up_genes_ch = cis_trans_genes_ch.flatten().splitCsv(header: ['gene']).map { row -> "${row.gene}" }
+            .unique().view()
 
     emit:
         merged = loci_ch
