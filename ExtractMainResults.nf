@@ -134,7 +134,7 @@ workflow GENE_CORRELATIONS {
     main:
         // Obtain a list of uncorrelated variants
         uncorrelated_variants_ch = GetUncorrelatedVariants(reference_bcf_files_ch)
-            .collectFile(name: 'merged.prune.in', newLine: true).collect()
+            .collectFile(name: 'merged.prune.in', newLine: true, cache: 'lenient').collect()
 
         // Calculate the Z-scores for each gene list in the genes channel
         z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch)
@@ -143,7 +143,7 @@ workflow GENE_CORRELATIONS {
         zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true, cache: 'lenient').collect()
 
         // Calculate gene gene matrix correlations
-        uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, 0.05)
+        uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, 0.2)
 
     emit:
         gene_correlations = uncorrelated_genes_out.correlations
@@ -164,21 +164,25 @@ workflow LOCI {
     main:
         // Get a collection of chunks for which to calculate LD
         significant_results_ch = ExtractSignificantResults(empirical_parquet_ch, genes_buffered_ch, 0.000000000002496)
-            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: 'lenient', storeDir: "${params.output}/significant_results").collect()
+            .collectFile(name: 'loci_merged.txt', skip: 1, keepHeader: true, cache: true, storeDir: "${params.output}/significant_results").collect()
 
         // Add bp data to loci
         loci_bed_files = AnnotateResults(significant_results_ch, variant_reference_ch, gene_reference_ch)
 
         // Merge for each gene the loci given a window
         cis_trans_genes_ch = SelectFollowUpLoci(
-            loci_bed_files, variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten()).collect()
+            loci_bed_files.collect(), variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten().collect()).collect()
 
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
-            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch)
+            loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch).collect()
+
+        follow_up_genes_ch = cis_trans_genes_ch.splitCsv(header: ['gene']).map { row -> "${row.gene}" }
+            .unique()
+
     emit:
         merged = loci_ch
-        cis_trans_genes = cis_trans_genes_ch
+        genes = follow_up_genes_ch
 }
 
 workflow CALCULATE_LD {
@@ -213,7 +217,7 @@ workflow COLLECT_LOCI {
 
     main:
         // Extract permuted results for all significant loci
-        loci_permuted_ch = ExtractLociAll(permuted_parquet_ch, loci_merged_ch.collect(), variant_reference_ch, uncorrelated_genes_buffered_ch, 'z_score')
+        loci_permuted_ch = ExtractLociAll(permuted_parquet_ch, loci_merged_ch, variant_reference_ch, uncorrelated_genes_buffered_ch, 'z_score')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -221,7 +225,7 @@ workflow COLLECT_LOCI {
             groupTuple()
 
         // Extract empirical results for all significant loci, when there is overlap between cis and trans effects
-        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_merged_ch.collect(), variant_reference_ch, cis_trans_genes_buffered_ch, '+p_value')
+        loci_empirical_ch = ExtractLociBed(empirical_parquet_ch, loci_merged_ch, variant_reference_ch, cis_trans_genes_buffered_ch, '+p_value')
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -254,11 +258,13 @@ workflow {
         bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,
         variant_flank_size,gene_flank_size)
 
+    follow_up_genes_ch = LOCI.out.genes.collate(gene_chunk_size)
+
     // In enabled, run the following sub workflows
     if ( enable_extract_loci ) {
         COLLECT_LOCI(
             empirical_parquet_ch,permuted_parquet_ch,
-            LOCI.out.cis_trans_genes,uncorrelated_genes_buffered_ch,
+            follow_up_genes_ch,uncorrelated_genes_buffered_ch,
             gene_reference_ch,variant_reference_ch,maf_table_ch,
             inclusion_step_output_ch,LOCI.out.merged)
     }

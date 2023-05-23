@@ -2,7 +2,7 @@
 
 
 process UncorrelatedGenes {
-
+    cache 'lenient'
     publishDir "${params.output}/gene_correlations", mode: 'copy', overwrite: true
 
     input:

@@ -89,7 +89,7 @@ process SelectFollowUpLoci {
         val genes
 
     output:
-        path "cis_trans_intersection.bed"
+        path "cis_trans_intersection_genes.bed"
 
     shell:
         // Merge loci per gene
@@ -103,17 +103,24 @@ process SelectFollowUpLoci {
         grep "True" !{variantBed} > cis_effects.bed
         grep "False" !{variantBed} > trans_effects.bed
 
+        cut -d$'\t' -f4 cis_effects.bed | sort | uniq > cis_genes.txt
+        cut -d$'\t' -f4 trans_effects.bed | sort | uniq > trans_genes.txt
+
         while read g; do
-          echo $g
-          grep "$g" cis_effects.bed | bedtools merge -d !{variantFlankSize} >> cis_loci_merged_per_gene.bed
-          grep "$g" trans_effects.bed | bedtools merge -d !{variantFlankSize} >> trans_loci_merged_per_gene.bed
-        done <genes.txt
+          grep "$g" cis_effects.bed | bedtools sort | bedtools merge -d 250000 -c 4,5 -o distinct >> cis_loci_merged_per_gene.bed
+        done < cis_genes.txt
+
+        while read g; do
+          grep "$g" trans_effects.bed | bedtools sort | bedtools merge -d 250000 -c 4,5 -o distinct >> trans_loci_merged_per_gene.bed
+        done < trans_genes.txt
 
         bedtools intersect \
           -a cis_loci_merged_per_gene.bed \
           -b trans_loci_merged_per_gene.bed \
-          -wa -wb | \
-        awk -F'\t' 'BEGIN {OFS = FS} { printf "%s\n%s",$4,$9; }' > cis_trans_intersection_genes.bed
+          -wa -wb > cis_trans_intersection.bed
+
+        cut -d$'\t' -f4 cis_trans_intersection.bed > cis_trans_intersection_genes.bed
+	cut -d$'\t' -f9 cis_trans_intersection.bed >> cis_trans_intersection_genes.bed
         '''
 }
 
