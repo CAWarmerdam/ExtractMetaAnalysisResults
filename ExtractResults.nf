@@ -47,6 +47,7 @@ params.maf_table = 'NO_FILE'
 params.bed = 'NO_FILE'
 params.variants = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
+params.cols = '+p_value,+z_score'
 params.output
 
 if (params.help){
@@ -110,7 +111,7 @@ workflow {
 
     if ( extract_variants ) {
         // Extract variants
-        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, '+p_value,+z_score')
+        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
             .flatten()
             .map { file ->
                    def key = variants_ch.baseName
@@ -127,7 +128,7 @@ workflow {
         bed_file_ch.splitText( by: locus_chunk_size )
 
         // Extract loci
-        loci_extracted_ch = ExtractLociAll(input_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch, '+p_value,+z_score')
+        loci_extracted_ch = ExtractLociAll(input_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch, params.cols)
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -141,7 +142,7 @@ workflow {
 
     if ( extract_loci == false & extract_variants == false ) {
         // Extract all
-        all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, '+p_value,+z_score')
+        all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
