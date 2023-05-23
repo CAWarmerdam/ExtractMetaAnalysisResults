@@ -176,10 +176,10 @@ def main(argv=None):
         pd.read_table(args.maf)
         .drop(["MedianMaf", "CombinedMaf", "POS", "CHR"], axis=1)
         .rename({"ID": "variant", "OtherAllele": "other_allele_maf", "Allele": "allele_maf"}, axis=1)
-        .set_index("variant").join(variant_reference))
+        .set_index("variant"))
 
     maf_dataframe = pd.merge(maf_dataframe, variant_reference,
-             left_on="variant", right_on="variant", validate="1:1")
+             left_index=True, right_on="variant", validate="1:1")
 
     maf_dataframe["flipped"] = maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]
     print((maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]).sum())
