@@ -53,7 +53,8 @@ class MafCalculator:
                  gene_inclusion_format="%s_GenesToInclude.txt"):
         self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
         self.overview_df.set_index('Dataset', inplace=True)
-        self.maf_table = (-1*flipped) - maf_table[self.overview_df.index]
+        self.maf_table = maf_table[self.overview_df.index]
+        self.maf_table[flipped] = 1 - self.maf_table.loc[flipped,:]
         self.overview_df['snp_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, variant_inclusion_format % name)))
         self.overview_df['gene_inclusion_path'] = (
@@ -181,6 +182,8 @@ def main(argv=None):
              left_on="variant", right_on="variant", validate="1:1")
 
     maf_dataframe["flipped"] = maf_dataframe["allele"] == maf_dataframe["allele_maf"]
+    print((maf_dataframe["allele"] == maf_dataframe["allele_maf"]).sum())
+    print((maf_dataframe["allele_other"] == maf_dataframe["allele_maf"]).sum())
     assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["allele_other"] == maf_dataframe["allele_maf"]))
 
     print("Minor allele frequencies loaded:")
