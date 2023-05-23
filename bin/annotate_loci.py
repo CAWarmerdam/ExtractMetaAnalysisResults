@@ -47,13 +47,14 @@ __description__ = "{} is a program developed and maintained by {}. " \
 
 # Classes
 class MafCalculator:
-    def __init__(self, inclusion_path, maf_table,
+    def __init__(self, inclusion_path, maf_table, flipped,
                  table_name="filter_logs_full.log",
                  variant_inclusion_format="%s_SnpsToInclude.txt",
                  gene_inclusion_format="%s_GenesToInclude.txt"):
         self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
         self.overview_df.set_index('Dataset', inplace=True)
         self.maf_table = maf_table[self.overview_df.index]
+        self.maf_table[flipped] = 1 - self.maf_table.loc[flipped,:]
         self.overview_df['snp_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, variant_inclusion_format % name)))
         self.overview_df['gene_inclusion_path'] = (
@@ -164,7 +165,7 @@ def main(argv=None):
         pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
         .drop(["allele1", "allele2"], axis=1)
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
-                 "str_allele1": "allele", "str_allele2": "other_allele"}, axis=1))
+                 "str_allele1": "allele_ref", "str_allele2": "allele_eff"}, axis=1))
 
     print("Variant reference loaded:")
     print(variant_reference.head())
@@ -173,9 +174,17 @@ def main(argv=None):
 
     maf_dataframe = (
         pd.read_table(args.maf)
-        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR", "Allele", "OtherAllele"], axis=1)
-        .rename({"ID": "variant"}, axis=1)
-        .set_index("variant"))
+        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR"], axis=1)
+        .rename({"ID": "variant", "OtherAllele": "other_allele_maf", "Allele": "allele_maf"}, axis=1)
+        .set_index("variant").join(variant_reference))
+
+    maf_dataframe = pd.merge(maf_dataframe, variant_reference,
+             left_on="variant", right_on="variant", validate="1:1")
+
+    maf_dataframe["flipped"] = maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]
+    print((maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]).sum())
+    print((maf_dataframe["allele_other"] == maf_dataframe["allele_maf"]).sum())
+    assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["allele_eff"] == maf_dataframe["allele_maf"]))
 
     print("Minor allele frequencies loaded:")
     print(maf_dataframe.head())
@@ -184,7 +193,8 @@ def main(argv=None):
 
     maf_calculator = MafCalculator(
         inclusion_path=args.inclusion_path,
-        maf_table=maf_dataframe)
+        maf_table=maf_dataframe,
+        flipped=maf_dataframe["flipped"])
 
     print("MAF calculator initiated!")
 
@@ -204,7 +214,7 @@ def main(argv=None):
         eqtls.merge(variant_reference, how="left", on="variant"))
 
     maf = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
-    eqtls_annotated['maf'] = maf.values
+    eqtls_annotated['allele_eff_freq'] = maf.values
 
     eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), sep="\t", index=False)
     # Output

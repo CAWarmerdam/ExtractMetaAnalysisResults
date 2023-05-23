@@ -48,7 +48,6 @@ Mandatory arguments:
 }
 
 params.maf_table = 'NO_FILE'
-params.clustered_loci = 'NO_FILE'
 params.background_bed = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
 
@@ -171,14 +170,14 @@ workflow LOCI {
 
         // Merge for each gene the loci given a window
         cis_trans_genes_ch = SelectFollowUpLoci(
-            loci_bed_files.collect(), variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten().collect()).collect()
+            loci_bed_files.collect(), variant_flank_size, genome_ref_ch, genes_buffered_ch.flatten().collect())
 
         // Flank loci and find the union between them
         loci_ch = IntersectLoci(
             loci_bed_files, variant_flank_size, bed_file_ch, genome_ref_ch, cis_trans_genes_ch).collect()
 
         follow_up_genes_ch = cis_trans_genes_ch.flatten().splitCsv(header: ['gene']).map { row -> "${row.gene}" }
-            .unique().view()
+            .unique()
 
     emit:
         merged = loci_ch
