@@ -165,7 +165,7 @@ def main(argv=None):
         pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
         .drop(["allele1", "allele2"], axis=1)
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
-                 "str_allele1": "allele", "str_allele2": "other_allele"}, axis=1))
+                 "str_allele1": "allele_ref", "str_allele2": "allele_eff"}, axis=1))
 
     print("Variant reference loaded:")
     print(variant_reference.head())
@@ -181,10 +181,10 @@ def main(argv=None):
     maf_dataframe = pd.merge(maf_dataframe, variant_reference,
              left_on="variant", right_on="variant", validate="1:1")
 
-    maf_dataframe["flipped"] = maf_dataframe["allele"] == maf_dataframe["allele_maf"]
-    print((maf_dataframe["allele"] == maf_dataframe["allele_maf"]).sum())
+    maf_dataframe["flipped"] = maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]
+    print((maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]).sum())
     print((maf_dataframe["allele_other"] == maf_dataframe["allele_maf"]).sum())
-    assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["allele_other"] == maf_dataframe["allele_maf"]))
+    assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["allele_eff"] == maf_dataframe["allele_maf"]))
 
     print("Minor allele frequencies loaded:")
     print(maf_dataframe.head())
@@ -214,7 +214,7 @@ def main(argv=None):
         eqtls.merge(variant_reference, how="left", on="variant"))
 
     maf = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
-    eqtls_annotated['maf'] = maf.values
+    eqtls_annotated['allele_eff_freq'] = maf.values
 
     eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), sep="\t", index=False)
     # Output
