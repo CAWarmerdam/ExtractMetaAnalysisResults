@@ -130,7 +130,7 @@ class GencodeParser:
         df['chromosome'] = df['chromosome'].str.lstrip('chr').replace({"M": "25", "X": "23", "Y": "24"}).astype('Int64')
         df['gene_id'] = df['gene_id'].str.split('.').str[0]
         print(df['chromosome'].unique())
-        return df[['gene_id', 'chromosome', 'start', 'end']]
+        return df[['gene_id', 'chromosome', 'start', 'end']].drop_duplicates(keep='first')
 
 
 # Functions
