@@ -35,7 +35,7 @@ inclusion_step_output="/gpfs/space/GI/eQTLGen/freeze1/InclusionLists/output"
 
 output_folder="/gpfs/space/GI/eQTLGen/freeze1/Interpretation/ld/output"
 
-NXF_VER=21.10.6 ${nextflow_path}/nextflow run ExtractResults.nf \
+NXF_VER=21.10.6 ${nextflow_path}/nextflow run ExtractMainResults.nf \
 --empirical ${empirical}/eqtls \
 --permuted ${permuted}/eqtls \
 --reference_data ${reference_data} \
