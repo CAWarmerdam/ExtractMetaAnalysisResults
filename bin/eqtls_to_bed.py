@@ -83,8 +83,9 @@ def main(argv=None):
     # Perform method
     eqtls_annotated = (
         eqtls
-        .merge(variant_reference, how="inner", on="variant")
-        .merge(gene_dataframe, how="inner", left_on="phenotype", right_on="gene_id", suffixes=('', '_gene')))
+        .merge(variant_reference, how="inner", on="variant", validate="m:1")
+        .merge(gene_dataframe, how="inner", left_on="phenotype", right_on="gene_id",
+               suffixes=('', '_gene'), validate="m:1"))
 
     # Identify genes that have a cis-effect
     eqtls_annotated["cis"] = np.logical_and(
