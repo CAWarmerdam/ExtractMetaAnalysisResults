@@ -54,13 +54,14 @@ class MafCalculator:
         self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
         self.overview_df.set_index('Dataset', inplace=True)
         self.maf_table = maf_table[self.overview_df.index]
-        self.maf_table[flipped] = 1 - self.maf_table.loc[flipped,:]
+        self.maf_table[flipped] = 1 - self.maf_table.loc[flipped, :]
         self.overview_df['snp_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, variant_inclusion_format % name)))
         self.overview_df['gene_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, gene_inclusion_format % name)))
         self.snp_inclusion_df = self.load_inclusion_df('snp_inclusion_path')
         self.gene_inclusion_df = self.load_inclusion_df('gene_inclusion_path')
+
     def load_inclusion_df(self, column):
         # Create an empty dictionary to store dataframes
         dfs = {}
@@ -79,6 +80,7 @@ class MafCalculator:
         # Replace NaN values with 0 and convert to boolean
         merged_df = merged_df.fillna(0).astype(bool)
         return merged_df
+
     def calculate_maf(self, gene_variant_df):
         # Reformat the presence of the variants in the given dataframe
         variant_presence = (
@@ -115,6 +117,7 @@ class GencodeParser:
     def __init__(self, filename):
         self.filename = filename
         self.df = self.parse()
+
     def parse(self):
         genes = []
         with gzip.open(self.filename, 'rt') as f:
@@ -162,7 +165,7 @@ def main(argv=None):
     print("Loading variant reference from '{}'".format(args.variant_reference))
 
     variant_reference = (
-        pd.read_csv(args.variant_reference, sep = ' ', dtype={'CHR': "Int64", 'bp': "Int64"})
+        pd.read_csv(args.variant_reference, sep=' ', dtype={'CHR': "Int64", 'bp': "Int64"})
         .drop(["allele1", "allele2"], axis=1)
         .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
                  "str_allele1": "allele_ref", "str_allele2": "allele_eff"}, axis=1))
@@ -179,11 +182,11 @@ def main(argv=None):
         .set_index("variant"))
 
     maf_dataframe = pd.merge(maf_dataframe, variant_reference,
-             left_index=True, right_on="variant", validate="1:1")
+                             left_index=True, right_on="variant", validate="1:1")
 
     maf_dataframe["flipped"] = maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]
     print((maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]).sum())
-    print((maf_dataframe["allele_other"] == maf_dataframe["allele_maf"]).sum())
+    print((maf_dataframe["allele_eff"] == maf_dataframe["allele_maf"]).sum())
     assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["allele_eff"] == maf_dataframe["allele_maf"]))
 
     print("Minor allele frequencies loaded:")
@@ -202,7 +205,7 @@ def main(argv=None):
 
     # gencode_parser = GencodeParser(args.gene_gff)
     # gene_dataframe = gencode_parser.df
-    eqtls = pd.read_csv(args.input_file, sep = '\t')
+    eqtls = pd.read_csv(args.input_file, sep='\t')
 
     # Perform method
     # eqtls_annotated = (
