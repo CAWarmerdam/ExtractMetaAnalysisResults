@@ -53,7 +53,7 @@ class MafCalculator:
                  gene_inclusion_format="%s_GenesToInclude.txt"):
         self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
         self.overview_df.set_index('Dataset', inplace=True)
-        self.maf_table = maf_table[self.overview_df.index]
+        self.maf_table = maf_table[self.overview_df.index].copy()
         self.maf_table.loc[flipped, :] = 1 - self.maf_table.loc[flipped, :]
         self.overview_df['snp_inclusion_path'] = (
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, variant_inclusion_format % name)))
