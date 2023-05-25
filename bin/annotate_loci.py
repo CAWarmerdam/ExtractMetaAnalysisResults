@@ -182,7 +182,7 @@ def main(argv=None):
         .set_index("variant"))
 
     maf_dataframe = pd.merge(maf_dataframe, variant_reference,
-                             left_index=True, right_on="variant", validate="1:1")
+                             left_index=True, right_on="variant", validate="1:1").set_index("variant")
 
     maf_dataframe["flipped"] = maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]
     print((maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]).sum())
