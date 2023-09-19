@@ -48,7 +48,7 @@ __description__ = "{} is a program developed and maintained by {}. " \
 # Classes
 class MafCalculator:
     def __init__(self, inclusion_path, maf_table, flipped,
-                 table_name="filter_logs_full.log",
+                 table_name="filter_logs.log",
                  variant_inclusion_format="%s_SnpsToInclude.txt",
                  gene_inclusion_format="%s_GenesToInclude.txt"):
         self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
@@ -61,7 +61,6 @@ class MafCalculator:
             self.overview_df.index.map(lambda name: os.path.join(inclusion_path, gene_inclusion_format % name)))
         self.snp_inclusion_df = self.load_inclusion_df('snp_inclusion_path')
         self.gene_inclusion_df = self.load_inclusion_df('gene_inclusion_path')
-
     def load_inclusion_df(self, column):
         # Create an empty dictionary to store dataframes
         dfs = {}
@@ -69,7 +68,9 @@ class MafCalculator:
         inclusion_paths = self.overview_df[column].to_dict()
         # Iterate over files in the directory
         for cohort, filepath in inclusion_paths.items():
+            print(cohort, filepath)
             df = pd.read_csv(filepath)
+            print(df.head())
             df[cohort] = 1
             # Set the index to the 'ID' column
             df.set_index('ID', inplace=True)
@@ -80,7 +81,6 @@ class MafCalculator:
         # Replace NaN values with 0 and convert to boolean
         merged_df = merged_df.fillna(0).astype(bool)
         return merged_df
-
     def calculate_maf(self, gene_variant_df):
         # Reformat the presence of the variants in the given dataframe
         variant_presence = (
@@ -117,7 +117,6 @@ class GencodeParser:
     def __init__(self, filename):
         self.filename = filename
         self.df = self.parse()
-
     def parse(self):
         genes = []
         with gzip.open(self.filename, 'rt') as f:
