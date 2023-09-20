@@ -133,6 +133,7 @@ process AnnotateLoci {
         path geneReference
         path mafTable
         path inclusionDir
+        val cohorts
 
     output:
         tuple val(locus_string), path("annotated.${locus_string}.csv.gz")
@@ -144,6 +145,7 @@ process AnnotateLoci {
 
         annotate_loci.py \
             --input-file concatenated.${locus_string}.csv \
+            --cohorts ${cohorts.join(' ')} \
             --variant-reference ${variantReference} \
             --gene-gff ${geneReference} \
             --maf-table ${mafTable} \

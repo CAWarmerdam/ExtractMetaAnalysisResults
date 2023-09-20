@@ -47,12 +47,12 @@ __description__ = "{} is a program developed and maintained by {}. " \
 
 # Classes
 class MafCalculator:
-    def __init__(self, inclusion_path, maf_table, flipped,
-                 table_name="filter_logs.log",
-                 variant_inclusion_format="%s_SnpsToInclude.txt",
-                 gene_inclusion_format="%s_GenesToInclude.txt"):
-        self.overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
-        self.overview_df.set_index('Dataset', inplace=True)
+    def __init__(self, inclusion_path, cohorts, maf_table, flipped, table_name="filter_logs.log",
+                 variant_inclusion_format="%s_SnpsToInclude.txt", gene_inclusion_format="%s_GenesToInclude.txt"):
+        self.cohorts = cohorts
+        overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
+        overview_df.set_index('Dataset', inplace=True)
+        self.overview_df = overview_df[self.cohorts,:]
         self.maf_table = maf_table[self.overview_df.index].copy()
         self.maf_table.loc[flipped, :] = 1 - self.maf_table.loc[flipped, :]
         self.overview_df['snp_inclusion_path'] = (
@@ -148,6 +148,8 @@ def main(argv=None):
 
     parser.add_argument('--input-file', dest='input_file', required=True,
                         help='Path to the table containing eQTL results')
+    parser.add_argument('--cohorts', dest='cohorts', required=True,
+                        help='Names of cohorts used in the meta-analysis')
     parser.add_argument('--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
     parser.add_argument('--gene-gff', dest='gene_gff', required=True,
@@ -195,6 +197,7 @@ def main(argv=None):
 
     maf_calculator = MafCalculator(
         inclusion_path=args.inclusion_path,
+        cohorts=args.cohorts,
         maf_table=maf_dataframe,
         flipped=maf_dataframe["flipped"])
 
