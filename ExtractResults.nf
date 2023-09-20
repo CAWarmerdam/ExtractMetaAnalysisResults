@@ -61,6 +61,11 @@ Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.ge
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
+cohorts_ch = Channel.fromPath(params.mastertable)
+    .ifEmpty { error "Cannot find master table from: ${params.mastertable}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.cohort ]}
+    .collect()
 
 inclusion_step_output_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.bed)
@@ -119,7 +124,7 @@ workflow {
             groupTuple()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
 
     }
 
@@ -136,7 +141,7 @@ workflow {
             groupTuple()
 
         // Annotate loci
-        loci_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+        loci_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
 
     }
 
@@ -150,7 +155,7 @@ workflow {
             .groupTuple().view()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_step_output_ch)
+        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_step_output_ch, cohorts_ch)
 
     }
 
