@@ -148,7 +148,7 @@ def main(argv=None):
 
     parser.add_argument('--input-file', dest='input_file', required=True,
                         help='Path to the table containing eQTL results')
-    parser.add_argument('--cohorts', dest='cohorts', required=True,
+    parser.add_argument('--cohorts', dest='cohorts', required=True, nargs='+',
                         help='Names of cohorts used in the meta-analysis')
     parser.add_argument('--variant-reference', dest='variant_reference', required=True,
                         help='Path to the table containing all SNPs from a reference panel')
