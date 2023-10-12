@@ -64,7 +64,7 @@ Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 cohorts_ch = Channel.fromPath(params.mastertable)
     .ifEmpty { error "Cannot find master table from: ${params.mastertable}" }
     .splitCsv(header: true, sep: '\t', strip: true)
-    .map{row -> [ row.cohort ]}
+    .map{row -> [ row.cohort_new_name ]}
     .collect()
 
 inclusion_step_output_ch = file(params.inclusion_step_output)
