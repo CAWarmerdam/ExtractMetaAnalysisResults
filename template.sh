@@ -52,4 +52,5 @@ nextflow run ExtractMainResults.nf \
 --output ${output_folder} \
 --inclusion_step_output ${inclusion_step_output} \
 -resume \
--profile slurm,singularity
+-profile singularity
+#-profile slurm,singularity
