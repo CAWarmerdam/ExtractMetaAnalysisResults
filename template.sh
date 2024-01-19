@@ -40,8 +40,8 @@ output_folder="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/fine_mapping/output
 
 #NXF_VER=23.04.1 ${nextflow_path}/nextflow run ExtractMainResults.nf \
 nextflow run ExtractMainResults.nf \
---empirical ${empirical}/eqtls \
---permuted ${permuted}/eqtls \
+--empirical ${empirical}/eqtls/meta \
+--permuted ${permuted}/eqtls/meta \
 --reference_data ${reference_data} \
 --genes ${empirical}/phenotypes_unique.txt \
 --genome_reference ${genome_reference} \
