@@ -255,6 +255,35 @@ def export_write(input_file, output_file, qtl_gene_filter, variant_filters, colu
         print("Closing output file '{}'".format(output_file))
 
 
+def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, column_specifications, p_thresh=None):
+    first = True
+
+    with open(output_file, 'w') as f:
+        for gene,chunk in qtl_gene_variant_df.groupby('gene'):
+            print("Gene {}".format(gene))
+            print(chunk)
+
+            qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+
+            result_processor = QtlResultProcessor(
+                input_file, qtl_single_gene_filter)
+            variant_filters = [QtlLocusVariantFilter(cols["chromosome"], cols["variant"]) for index, cols in chunk.iterrows()]
+            result_processor.variant_filters = variant_filters
+            if p_thresh is not None:
+                result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
+
+            df = result_processor.extract(
+                cols=column_specifications[""],
+                drop=column_specifications["-"],
+                add=column_specifications["+"])
+            df.to_csv(f, sep="\t", header=first, index=None)
+
+            first = False
+
+        print("Done!")
+        print("Closing output file '{}'".format(output_file))
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
@@ -281,6 +310,8 @@ def main(argv=None):
                         help = """File with the list of SNPs/variants to include.""")
     parser.add_argument('-B', '--bed-file', required=False, default=None,
                         help = """Bed file with a list of loci to extract""")
+    parser.add_argument('-P', '--gene-variant-pair-file', required=False, default=None, 
+                        help="""Gene variant pairs to extract""")
     parser.add_argument('-r', '--variant-reference', required = False,
                         help = "Reference for variants. Has to be gzipped and space-delimited.")
     parser.add_argument('-c', '--cols', dest="column_specifications", required = False, default = None,
@@ -302,8 +333,23 @@ def main(argv=None):
             .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}, axis=1))
         print(variant_reference.head())
 
+    if args.gene_variant_pair_file is not None:
+        gene_variant_pairs = pd.read_csv(args.gene_variant_pair_file, delimiter="\t", header=None, names=["variant", "gene"])
+        variant_list = gene_variant_pairs["variant"]
+        if variant_reference is None:
+            parser.error("Cannot subset on variants without variant reference")
+        processed_gene_variant_pairs = pd.merge(gene_variant_pairs, variant_reference, left_on="variant", right_on="variant")
+        print("Starting export")
+        output_file = "{}.out.csv".format(args.output_prefix)
+        export_write_qtl_pairs(args.input_file, output_file,
+                     processed_gene_variant_pairs,
+                     args.column_specifications, args.p_thresh)
+        return 0
+        
     if args.variants_file is not None:
         print("Using variants file '%s' to filter on variants." % args.variants_file)
+        if variants_list is not None:
+            print("Variant filter already defined. Skipping...")        
         variants_list = (
             pd.read_csv(args.variants_file, header=None, delimiter='\t')
             .iloc[:,0].tolist())
