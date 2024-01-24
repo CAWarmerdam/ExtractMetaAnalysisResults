@@ -251,29 +251,29 @@ workflow {
     uncorrelated_genes_buffered_ch = GENE_CORRELATIONS.out.uncorrelated_genes
         .splitCsv(header: ['gene']).map { row -> "${row.gene}" }.collate(gene_chunk_size)
 
-    // Extract significant results from the empirical side, and get loci as bed files
-    LOCI(
-        empirical_parquet_ch,genes_buffered_ch,
-        bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,
-        variant_flank_size,gene_flank_size)
-
-    follow_up_genes_ch = LOCI.out.genes.collate(gene_chunk_size)
-
-    // In enabled, run the following sub workflows
-    if ( enable_extract_loci ) {
-        COLLECT_LOCI(
-            empirical_parquet_ch,permuted_parquet_ch,
-            follow_up_genes_ch,uncorrelated_genes_buffered_ch,
-            gene_reference_ch,variant_reference_ch,maf_table_ch,
-            inclusion_step_output_ch,LOCI.out.merged)
-    }
-
-    if ( enable_cis_trans_coloc ) {
-        CIS_TRANS_COLOCALIZATION(
-            COLLECT_LOCI.out.empirical,COLLECT_LOCI.out.permuted,
-            GENE_CORRELATIONS.out.gene_correlations,inclusion_step_output_ch,
-            params.posterior_threshold,params.cs_threshold,params.output_cs_pip)
-    }
+//    // Extract significant results from the empirical side, and get loci as bed files
+//    LOCI(
+//       empirical_parquet_ch,genes_buffered_ch,
+//        bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,
+//        variant_flank_size,gene_flank_size)
+//
+//    follow_up_genes_ch = LOCI.out.genes.collate(gene_chunk_size)
+//
+//    // In enabled, run the following sub workflows
+//    if ( enable_extract_loci ) {
+//        COLLECT_LOCI(
+//           empirical_parquet_ch,permuted_parquet_ch,
+//            follow_up_genes_ch,uncorrelated_genes_buffered_ch,
+//            gene_reference_ch,variant_reference_ch,maf_table_ch,
+//            inclusion_step_output_ch,LOCI.out.merged)
+//    }
+//
+//    if ( enable_cis_trans_coloc ) {
+//        CIS_TRANS_COLOCALIZATION(
+//            COLLECT_LOCI.out.empirical,COLLECT_LOCI.out.permuted,
+//            GENE_CORRELATIONS.out.gene_correlations,inclusion_step_output_ch,
+//            params.posterior_threshold,params.cs_threshold,params.output_cs_pip)
+//    }
 }
 
 workflow.onComplete {

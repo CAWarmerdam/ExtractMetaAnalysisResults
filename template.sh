@@ -23,7 +23,7 @@ set -f
 nextflow_path=/gpfs/space/GI/eQTLGen/freeze2/tools
 
 empirical=/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/empirical_4GenPC20ExpPC_2023-10-30/
-permuted=/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/empirical_4GenPC20ExpPC_2023-10-30/
+permuted=/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/permuted_4GenPC20ExpPC_2023-10-30/
 
 reference_data="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/hg38/phasing_reference/phasing/chr*.bcf"
 
