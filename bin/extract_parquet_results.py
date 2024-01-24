@@ -267,7 +267,7 @@ def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, column_
 
             result_processor = QtlResultProcessor(
                 input_file, qtl_single_gene_filter)
-            variant_filters = [QtlLocusVariantFilter(cols["chromosome"], cols["variant"]) for index, cols in chunk.iterrows()]
+            variant_filters = [QtlLocusVariantFilter(chromosome, variant_chunk['variant']) for chromosome, variant_chunk in chunk.groupby('chromosome')]
             result_processor.variant_filters = variant_filters
             if p_thresh is not None:
                 result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
@@ -276,6 +276,7 @@ def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, column_
                 cols=column_specifications[""],
                 drop=column_specifications["-"],
                 add=column_specifications["+"])
+            print(df)
             df.to_csv(f, sep="\t", header=first, index=None)
 
             first = False

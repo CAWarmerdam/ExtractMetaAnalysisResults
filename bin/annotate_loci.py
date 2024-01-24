@@ -52,7 +52,7 @@ class MafCalculator:
         self.cohorts = cohorts
         overview_df = pd.read_table(os.path.join(inclusion_path, table_name), index_col=False)
         overview_df.set_index('Dataset', inplace=True)
-        self.overview_df = overview_df[self.cohorts,:]
+        self.overview_df = overview_df.loc[self.cohorts]
         self.maf_table = maf_table[self.overview_df.index].copy()
         self.maf_table.loc[flipped, :] = 1 - self.maf_table.loc[flipped, :]
         self.overview_df['snp_inclusion_path'] = (
