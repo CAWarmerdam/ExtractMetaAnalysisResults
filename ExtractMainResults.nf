@@ -50,6 +50,7 @@ Mandatory arguments:
 params.maf_table = 'NO_FILE'
 params.background_bed = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
+params.mastertable = 'NO_FILE'
 
 if (params.help){
     helpmessage()
@@ -64,6 +65,12 @@ Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.ge
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
+
+cohorts_ch = Channel.fromPath(params.mastertable)
+    .ifEmpty { error "Cannot find master table from: ${params.mastertable}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.cohort_new_name ]}
+    .collect()
 
 inclusion_step_output_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.background_bed)
@@ -232,7 +239,7 @@ workflow COLLECT_LOCI {
             groupTuple()
 
         // Annotate loci
-        loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch)
+        loci_annotated_ch = AnnotateLoci(loci_empirical_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
 
         loci_permuted_combined_ch = ConcatLoci(loci_permuted_ch)
 
@@ -251,29 +258,29 @@ workflow {
     uncorrelated_genes_buffered_ch = GENE_CORRELATIONS.out.uncorrelated_genes
         .splitCsv(header: ['gene']).map { row -> "${row.gene}" }.collate(gene_chunk_size)
 
-//    // Extract significant results from the empirical side, and get loci as bed files
-//    LOCI(
-//       empirical_parquet_ch,genes_buffered_ch,
-//        bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,
-//        variant_flank_size,gene_flank_size)
-//
-//    follow_up_genes_ch = LOCI.out.genes.collate(gene_chunk_size)
-//
-//    // In enabled, run the following sub workflows
-//    if ( enable_extract_loci ) {
-//        COLLECT_LOCI(
-//           empirical_parquet_ch,permuted_parquet_ch,
-//            follow_up_genes_ch,uncorrelated_genes_buffered_ch,
-//            gene_reference_ch,variant_reference_ch,maf_table_ch,
-//            inclusion_step_output_ch,LOCI.out.merged)
-//    }
-//
+    // Extract significant results from the empirical side, and get loci as bed files
+    LOCI(
+       empirical_parquet_ch,genes_buffered_ch,
+        bed_file_ch,variant_reference_ch,gene_reference_ch,genome_ref_ch,
+        variant_flank_size,gene_flank_size)
+
+    follow_up_genes_ch = LOCI.out.genes.collate(gene_chunk_size)
+
+    // In enabled, run the following sub workflows
+    if ( enable_extract_loci ) {
+        COLLECT_LOCI(
+           empirical_parquet_ch,permuted_parquet_ch,
+            follow_up_genes_ch,uncorrelated_genes_buffered_ch,
+            gene_reference_ch,variant_reference_ch,maf_table_ch,
+            inclusion_step_output_ch,LOCI.out.merged)
+    }
+
 //    if ( enable_cis_trans_coloc ) {
 //        CIS_TRANS_COLOCALIZATION(
 //            COLLECT_LOCI.out.empirical,COLLECT_LOCI.out.permuted,
 //            GENE_CORRELATIONS.out.gene_correlations,inclusion_step_output_ch,
 //            params.posterior_threshold,params.cs_threshold,params.output_cs_pip)
-//    }
+//   }
 }
 
 workflow.onComplete {

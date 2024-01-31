@@ -36,6 +36,9 @@ bed="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tm
 inclusion_step_output="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/ld_analysis_input/freeze2/InclusionLists/output"
 maf_table="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/ld_analysis_input/freeze2/PreMetaQc/output/MafInformation_GTEx_LL.txt.gz"
 
+#mastertable="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/empirical_4GenPC20ExpPC_2023-10-30/MasterTable_2023-12-05.txt"
+mastertable="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld-GTEx-tmp-freeze/permuted_4GenPC20ExpPC_2023-10-30/MasterTable_permuted_2024-01-09.txt"
+
 output_folder="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/fine_mapping/output"
 
 #NXF_VER=23.04.1 ${nextflow_path}/nextflow run ExtractMainResults.nf \
@@ -51,6 +54,7 @@ nextflow run ExtractMainResults.nf \
 --maf_table ${maf_table} \
 --output ${output_folder} \
 --inclusion_step_output ${inclusion_step_output} \
+--mastertable ${mastertable} \
 -resume \
 -profile singularity
 #-profile slurm,singularity
