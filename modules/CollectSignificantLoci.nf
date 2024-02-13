@@ -5,14 +5,17 @@ process ExtractSignificantResults {
 
     input:
         path input
+        path variantReference
+        path geneReference
+        path inclusionDir
         val genes
         val p_value
+        val cohorts
 
     output:
-        path "loci.out.csv"
+        path "lead_variants.csv"
 
     shell:
-        gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
         mkdir tmp_eqtls
@@ -24,10 +27,18 @@ process ExtractSignificantResults {
 
         extract_parquet_results.py \
             --input-file tmp_eqtls \
-            --genes !{gene_arg} \
+            --genes !{genes.join(' ')} \
             --p-thresh !{p_value} \
             --cols "+p_value" \
-            --output-prefix loci
+            --output-prefix extracted
+
+        annotate_lead_variants.py \
+            --input-file extracted.out.csv \
+            --cohorts !{cohorts.join(' ')} \
+            --inclusion-path !{inclusionDir} \
+            --variant-reference !{variantReference} \
+            --gene-ref !{geneReference} \
+            --out-prefix annotated.!{genes.join("_")}
 
         rm -r tmp_eqtls
         '''
@@ -52,75 +63,26 @@ process AnnotateResults {
         """
 }
 
-process IntersectLoci {
+process DefineFineMappingLoci {
     input:
-        path variantLoci
-        val variantFlankSize
-        path bedFile
+        path leadVariants
         path genomeRef
-        path cisTransGenes
 
     output:
-        path "merged.bed"
-
-    script:
-        // Define background bed file to take into account
-        def bed = bedFile.name != 'NO_FILE' ? "$bedFile" : ''
-
-        // Calculate flanks for genes, calculate flanks for snps, calculate union.
-        """
-        grep -F -f ${cisTransGenes} "${variantLoci}" > "filtered_variant_loci.bed"
-
-        bedtools slop -i "filtered_variant_loci.bed" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
-
-        cat "variant_loci.flank.bed" ${bed} > "total.flank.bed"
-
-        # Get the union of the two bed files (including flanks)
-        bedtools sort -i "total.flank.bed" > "total.flank.sorted.bed"
-        bedtools merge -i "total.flank.sorted.bed" -d 0 -c 4 -o distinct > "merged.bed"
-        """
-}
-
-process SelectFollowUpLoci {
-    input:
-        path variantBed
-        val variantFlankSize
-        path genomeRef
-        val genes
-
-    output:
-        path "cis_trans_intersection_genes.bed"
+        path "finemapping_loci_ld_chunk_*.bed"
 
     shell:
-        // Merge loci per gene
-        gene_arg = genes.join("\n")
         '''
-        echo "!{gene_arg}" > genes.txt
+        awk '{ print $0,$1,$2,$3 }' !{leadVariants} | bedtools slop -b 1000000 -g !{genomeRef} > loci_1Mb_window.bed
 
-        touch cis_loci_merged_per_gene.bed
-        touch trans_loci_merged_per_gene.bed
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $7,$10,$10,$2}' !{leadVariants} \
+        | bedtools slop -b 1000000 -g !{genomeRef} \
+        | bedtools sort > loci_1Mb_window.bed
 
-        grep "True" !{variantBed} > cis_effects.bed
-        grep "False" !{variantBed} > trans_effects.bed
+        # This is suboptimal since there will be ld chunks of over humongous size, use Dans method
+        bedtools cluster -i loci_1Mb_window.bed -d 1000000 > finemapping_loci_all_ld_chunks.bed
 
-        cut -d$'\t' -f4 cis_effects.bed | sort | uniq > cis_genes.txt
-        cut -d$'\t' -f4 trans_effects.bed | sort | uniq > trans_genes.txt
-
-        while read g; do
-          grep "$g" cis_effects.bed | bedtools sort | bedtools merge -d 250000 -c 4,5 -o distinct >> cis_loci_merged_per_gene.bed
-        done < cis_genes.txt
-
-        while read g; do
-          grep "$g" trans_effects.bed | bedtools sort | bedtools merge -d 250000 -c 4,5 -o distinct >> trans_loci_merged_per_gene.bed
-        done < trans_genes.txt
-
-        bedtools intersect \
-          -a cis_loci_merged_per_gene.bed \
-          -b trans_loci_merged_per_gene.bed \
-          -wa -wb > cis_trans_intersection.bed
-
-        cut -d$'\t' -f4 cis_trans_intersection.bed > cis_trans_intersection_genes.bed
-	cut -d$'\t' -f9 cis_trans_intersection.bed >> cis_trans_intersection_genes.bed
+        # Also split up the file into the separate clusters here...
         '''
 }
 
