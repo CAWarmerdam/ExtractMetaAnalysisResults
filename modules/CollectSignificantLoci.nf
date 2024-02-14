@@ -69,7 +69,7 @@ process DefineFineMappingLoci {
         path genomeRef
 
     output:
-        path "finemapping_loci_ld_chunk_*.bed"
+        path "finemapping_loci_*.bed"
 
     shell:
         '''
@@ -80,9 +80,7 @@ process DefineFineMappingLoci {
         | bedtools sort > loci_1Mb_window.bed
 
         # This is suboptimal since there will be ld chunks of over humongous size, use Dans method
-        bedtools cluster -i loci_1Mb_window.bed -d 1000000 > finemapping_loci_all_ld_chunks.bed
-
-        # Also split up the file into the separate clusters here...
+        assign_clusters.py  loci_1Mb_window.bed 1000000 finemapping_loci
         '''
 }
 
