@@ -146,7 +146,7 @@ workflow LOCI {
         // For every gene, get lead variants for significant results, and apply a window of 1Mb around the lead variant,
         // annotate with cis/trans write bed file
         significant_results_ch = ExtractSignificantResults(empirical_parquet_ch, genes_buffered_ch, variant_reference_ch, gene_reference_ch, inclusion_step_output_ch, 0.000000000002496, cohorts_list)
-            .collectFile(name: 'lead_variants.csv', skip: 1, keepHeader: true, cache: true, storeDir: "${params.output}/significant_results").collect()
+            .collectFile(name: 'sign_variants.csv', skip: 1, keepHeader: true, cache: true, storeDir: "${params.output}/significant_results").collect()
 
         // Output a channel of sorted bed files (by start pos).
         // Each bed file has the following columns: chr, start, end, name.
@@ -167,10 +167,8 @@ workflow FINEMAPPING {
 
     main:
         ld_ch = CalculateLdMatrix(
-                    permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch,
-                    loci_bed_ch)
-
-        // Start finemapping here
+                    empirical_parquet_ch, permuted_parquet_ch,
+                    variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch)
 }
 
 workflow {

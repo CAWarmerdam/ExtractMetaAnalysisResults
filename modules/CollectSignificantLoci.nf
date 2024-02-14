@@ -13,7 +13,7 @@ process ExtractSignificantResults {
         val cohorts
 
     output:
-        path "lead_variants.csv"
+        path "sign_variants.csv"
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
@@ -65,7 +65,7 @@ process AnnotateResults {
 
 process DefineFineMappingLoci {
     input:
-        path leadVariants
+        path signVariants
         path genomeRef
 
     output:
@@ -73,14 +73,29 @@ process DefineFineMappingLoci {
 
     shell:
         '''
-        awk '{ print $0,$1,$2,$3 }' !{leadVariants} | bedtools slop -b 1000000 -g !{genomeRef} > loci_1Mb_window.bed
+        # Input is expected to be a table of significant results, with the following columns:
+        # 7: Chromosome of the variant of the significant eQTL
+        # 10: Basepair position of the variant of the significant eQTL
+        # 2: ENSG identifier of the gene of the significant eQTL
 
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $7,$10,$10,$2}' !{leadVariants} \
-        | bedtools slop -b 1000000 -g !{genomeRef} \
-        | bedtools sort > loci_1Mb_window.bed
+        # First, get the relevant columns to make a bed file, and apply a splop to make a total
+        # window of 3Mb
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $7,$10,$10,$2}' !{signVariants} \
+        | bedtools slop -b 1500000 -g !{genomeRef} > loci_3Mb_window.bed
 
-        # This is suboptimal since there will be ld chunks of over humongous size, use Dans method
-        assign_clusters.py  loci_1Mb_window.bed 1000000 finemapping_loci
+        # Second, extract the gene ENSG identifiers, and get a set of identifiers, removing duplicates
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $2}' !{signVariants} | sort | uniq > unique_genes.txt
+
+        # Loop through the set of ENSG identifiers, merging the loci for each gene
+        while read g; do
+            grep "$g" loci_3Mb_window.bed | bedtools sort | bedtools merge -c 4 -o distinct >> loci_3Mb_merged_per_gene.bed
+        done < unique_genes.txt
+
+        # Sort the resulting bed file
+        bedtools sort loci_3Mb_merged_per_gene.bed > loci_3Mb_merged_per_gene_sorted.bed
+
+        # Assign your windows to clusters.
+        assign_clusters.py  loci_3Mb_merged_per_gene_sorted.bed 5000000 finemapping_loci
         '''
 }
 
