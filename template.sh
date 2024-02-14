@@ -56,5 +56,5 @@ nextflow run ExtractMainResults.nf \
 --inclusion_step_output ${inclusion_step_output} \
 --mastertable ${mastertable} \
 -resume \
--profile singularity
-#-profile slurm,singularity
+-profile slurm,singularity
+#-profile singularity
