@@ -167,10 +167,8 @@ workflow FINEMAPPING {
 
     main:
         ld_ch = CalculateLdMatrix(
-                    permuted_parquet_ch, uncorrelated_genes_ch, variant_reference_ch,
-                    loci_bed_ch)
-
-        // Start finemapping here
+                    empirical_parquet_ch, permuted_parquet_ch,
+                    variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch)
 }
 
 workflow {
