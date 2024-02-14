@@ -42,7 +42,7 @@ mastertable="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/output/2024-01-11-lld
 output_folder="/groups/umcg-fg/tmp01/projects/eqtlgen-phase2/fine_mapping/output"
 
 #NXF_VER=23.04.1 ${nextflow_path}/nextflow run ExtractMainResults.nf \
-nextflow run ExtractMainResults.nf \
+nextflow run FineMapping.nf \
 --empirical ${empirical}/eqtls/meta \
 --permuted ${permuted}/eqtls/meta \
 --reference_data ${reference_data} \
