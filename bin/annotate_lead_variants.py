@@ -388,6 +388,11 @@ def main(argv=None):
         .merge(gene_dataframe.rename(columns={'gene_id': 'phenotype'},).set_index("phenotype"), how="inner", left_index=True, right_index=True,
                suffixes=('', '_gene'), validate="m:1")).reset_index()
 
+    if eqtls_annotated.shape[0] > 0:
+        eqtls_annotated.to_csv("sign_variants.csv", sep="\t", index=False)
+    else:
+        open("sign_variants.csv", 'a').close()
+
     clumper = Clumper(p_threshold=5e-8, window=cis_window_flank_size)
     lead_effects = (
         eqtls_annotated
