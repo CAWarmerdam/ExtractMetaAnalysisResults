@@ -13,7 +13,7 @@ process ExtractSignificantResults {
         val cohorts
 
     output:
-        path "sign_variants.csv"
+        path "sign_variants.csv", optional:true
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
@@ -38,7 +38,7 @@ process ExtractSignificantResults {
             --inclusion-path !{inclusionDir} \
             --variant-reference !{variantReference} \
             --gene-ref !{geneReference} \
-            --out-prefix annotated.!{genes.join("_")}
+            --out-prefix annotated.
 
         rm -r tmp_eqtls
         '''
