@@ -6,7 +6,7 @@
 nextflow.enable.dsl = 2
 
 // import modules
-include { ExtractVariants; ExtractLociBed; ExtractLociAll } from './modules/CollectResults'
+include { SplitGeneVariantPairs; ExtractVariants; ExtractGeneVariantPairs; ExtractLociBed; ExtractLociAll } from './modules/CollectResults'
 include { AnnotateLoci } from './modules/CollectSignificantLoci'
 
 
@@ -46,6 +46,7 @@ Mandatory arguments:
 params.maf_table = 'NO_FILE'
 params.bed = 'NO_FILE'
 params.variants = 'NO_FILE'
+params.gene_variant_pairs = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
 params.cols = '+p_value,+z_score'
 params.output
@@ -67,16 +68,18 @@ cohorts_ch = Channel.fromPath(params.mastertable)
     .map{row -> [ row.cohort_new_name ]}
     .collect()
 
-inclusion_step_output_ch = file(params.inclusion_step_output)
+inclusion_dir_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.bed)
 variants_ch = file(params.variants)
+gene_variant_pairs_ch = file(params.gene_variant_pairs)
 
 Channel.fromPath(params.maf_table).collect().set { maf_table_ch }
 
-gene_chunk_size=1
+gene_chunk_size=100
 locus_chunk_size=100
 
 extract_variants = params.variants != "NO_FILE"
+extract_gene_variant_pairs = params.gene_variant_pairs != "NO_FILE"
 extract_loci = params.bed != "NO_FILE"
 
 log.info """=======================================================
@@ -114,6 +117,21 @@ workflow {
     // Buffer genes
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
+    if ( extract_gene_variant_pairs ) {
+        SplitGeneVariantPairs(gene_variant_pairs_ch,gene_chunk_size)
+        // Extract variants
+        variants_extracted_ch = ExtractGeneVariantPairs(input_parquet_ch, variant_reference_ch, SplitGeneVariantPairs.out.flatten(), params.cols)
+            .flatten()
+            .map { file ->
+                   def key = variants_ch.baseName
+                   return tuple(key, file) }
+            groupTuple()
+
+        // Annotate loci
+        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
+
+    }
+
     if ( extract_variants ) {
         // Extract variants
         variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
@@ -145,7 +163,7 @@ workflow {
 
     }
 
-    if ( extract_loci == false & extract_variants == false ) {
+    if ( extract_loci == false & extract_variants == false & extract_gene_variant_pairs == false) {
         // Extract all
         all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
             .flatten()
@@ -155,7 +173,7 @@ workflow {
             .groupTuple().view()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_step_output_ch, cohorts_ch)
+        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
 
     }
 
