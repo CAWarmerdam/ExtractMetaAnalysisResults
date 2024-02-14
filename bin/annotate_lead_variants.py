@@ -357,7 +357,7 @@ def main(argv=None):
 
     print("Loading gene annotations from '{}'".format(args.gene_ref))
 
-    gencode_parser = GtfParser(args.gene_ref)
+    gencode_parser = GencodeParser(args.gene_ref)
     gene_dataframe = gencode_parser.df
 
     gene_dataframe = gene_dataframe.loc[gene_dataframe.gene_id.isin(eqtls_genes_filtered.phenotype)].copy()
