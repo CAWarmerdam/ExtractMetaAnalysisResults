@@ -53,10 +53,12 @@ process CalculateLdMatrix {
           cp -r "!{permuted}/${gene}" tmp_eqtls/
         done <unique_genes_permuted.txt
 
+        bedtools merge -i !{bedFile} -d 3000000 > ld_window.bed
+
         ld_calculator.py \
         --input-file "tmp_permuted" \
         --variant-reference !{variant_reference} \
-        --loci loci.txt \
+        --bed-file ld_window.bed \
         --output-prefix "ld"
         '''
 }
