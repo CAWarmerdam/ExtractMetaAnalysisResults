@@ -61,6 +61,12 @@ Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
+cohorts_ch = Channel.fromPath(params.mastertable)
+    .ifEmpty { error "Cannot find master table from: ${params.mastertable}" }
+    .splitCsv(header: true, sep: '\t', strip: true)
+    .map{row -> [ row.cohort_new_name ]}
+    .collect()
+
 inclusion_step_output_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.background_bed)
 
@@ -146,7 +152,7 @@ workflow LOCI {
         // Each bed file has the following columns: chr, start, end, name.
         // Where, each row is defined by a significant lead variant, with a 1Mb base pair window around the lead variant
         // The highest end pos must never be greater than the lowest start pos + 5Mb
-        loci_ch = DefineFineMappingLoci(significant_results_ch).flatten()
+        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch).flatten()
     emit:
         loci = loci_ch
 }
@@ -189,7 +195,7 @@ workflow {
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        GENE_CORRELATIONS.out.uncorrelated_genes,inclusion_step_output_ch,LOCI.out.loci)
+        GENE_CORRELATIONS.out.uncorrelated_genes,LOCI.out.loci)
 }
 
 workflow.onComplete {
