@@ -25,8 +25,8 @@ process CalculateLdMatrix {
     publishDir "${params.output}/ld_matrices", mode: 'copy', overwrite: true
 
     input:
-        path empirical
-        path permuted
+        path empirical, stageAs: 'empirical'
+        path permuted, stageAs: 'permuted'
         path variantReference
         path uncorrelatedGenes
         path bedFile
