@@ -284,6 +284,9 @@ def main(argv=None):
     total_sample_size = overview_df.loc[cohorts, "N"].sum()
 
     eqtls = pd.read_csv(args.input_file, sep='\t')
+    if len(eqtls) == 0:
+        print(f"WARNING: no eQTLs found in {args.input_file}")
+        return 0
 
     print(eqtls.head())
 
@@ -354,7 +357,7 @@ def main(argv=None):
 
     print("Loading gene annotations from '{}'".format(args.gene_ref))
 
-    gencode_parser = GtfParser(args.gene_ref)
+    gencode_parser = GencodeParser(args.gene_ref)
     gene_dataframe = gencode_parser.df
 
     gene_dataframe = gene_dataframe.loc[gene_dataframe.gene_id.isin(eqtls_genes_filtered.phenotype)].copy()
@@ -390,8 +393,6 @@ def main(argv=None):
 
     if eqtls_annotated.shape[0] > 0:
         eqtls_annotated.to_csv("sign_variants.csv", sep="\t", index=False)
-    else:
-        open("sign_variants.csv", 'a').close()
 
     clumper = Clumper(p_threshold=5e-8, window=cis_window_flank_size)
     lead_effects = (
@@ -400,8 +401,6 @@ def main(argv=None):
 
     if lead_effects.shape[0] > 0:
         lead_effects.to_csv("lead_variants.csv", sep="\t", index=False)
-    else:
-        open("lead_variants.csv", 'a').close()
 
     # output ranges of non-polygenic windows
 

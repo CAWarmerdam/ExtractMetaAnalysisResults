@@ -13,7 +13,7 @@ process ExtractSignificantResults {
         val cohorts
 
     output:
-        path "sign_variants.csv"
+        path "sign_variants.csv", optional:true
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
@@ -38,7 +38,7 @@ process ExtractSignificantResults {
             --inclusion-path !{inclusionDir} \
             --variant-reference !{variantReference} \
             --gene-ref !{geneReference} \
-            --out-prefix annotated.!{genes.join("_")}
+            --out-prefix annotated.
 
         rm -r tmp_eqtls
         '''
@@ -80,7 +80,7 @@ process DefineFineMappingLoci {
 
         # First, get the relevant columns to make a bed file, and apply a splop to make a total
         # window of 3Mb
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $7,$10,$10,$2}' !{signVariants} \
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $12,$9,$9,$2}' !{signVariants} \
         | bedtools slop -b 1500000 -g !{genomeRef} > loci_3Mb_window.bed
 
         # Second, extract the gene ENSG identifiers, and get a set of identifiers, removing duplicates
@@ -92,10 +92,10 @@ process DefineFineMappingLoci {
         done < unique_genes.txt
 
         # Sort the resulting bed file
-        bedtools sort loci_3Mb_merged_per_gene.bed > loci_3Mb_merged_per_gene_sorted.bed
+        bedtools sort -i loci_3Mb_merged_per_gene.bed > loci_3Mb_merged_per_gene_sorted.bed
 
         # Assign your windows to clusters.
-        assign_clusters.py  loci_3Mb_merged_per_gene_sorted.bed 5000000 finemapping_loci
+        assign_clusters.py loci_3Mb_merged_per_gene_sorted.bed 5000000 finemapping_loci
         '''
 }
 

@@ -138,8 +138,8 @@ workflow LOCI {
         genes_buffered_ch
         variant_reference_ch
         gene_reference_ch
-        inclusion_step_output_ch
         genome_ref_ch
+        inclusion_step_output_ch
         cohorts_list
 
     main:
