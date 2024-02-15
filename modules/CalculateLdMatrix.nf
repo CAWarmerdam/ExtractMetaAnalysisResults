@@ -46,11 +46,11 @@ process CalculateLdMatrix {
         awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $4}' !{bedFile} | sort | uniq > unique_genes_permuted.txt
 
         while read gene; do
-          cp -r "!{empirical}/phenotype=${gene}" tmp_eqtls/
+          cp -r "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
         while read gene; do
-          cp -r "!{permuted}/phenotype=${gene}" tmp_eqtls/
+          cp -r "!{permuted}/phenotype=${gene}" tmp_permuted/
         done <unique_genes_permuted.txt
 
         bedtools merge -i !{bedFile} -d 3000000 > ld_window.bed
@@ -60,5 +60,18 @@ process CalculateLdMatrix {
         --variant-reference !{variantReference} \
         --bed-file ld_window.bed \
         --output-prefix "ld"
+
+        cat finemapping_loci_cluster_2.bed | tr '\t'  ',' | while IFS=',' read -r chrom start end gene cluster; do
+            echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
+            echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
+
+            extract_parquet_results.py \
+                --input-file tmp_empirical \
+                --variant-reference !{variantReference} \
+                --genes ${gene} \
+                --cols '+p_value' \
+                --bed-file "current_locus_as_bed_file.bed" \
+                --output-prefix extracted
+        done
         '''
 }
