@@ -57,7 +57,7 @@ process CalculateLdMatrix {
 
         ld_calculator.py \
         --input-file "tmp_permuted" \
-        --variant-reference !{variant_reference} \
+        --variant-reference !{variantReference} \
         --bed-file ld_window.bed \
         --output-prefix "ld"
         '''
