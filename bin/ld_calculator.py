@@ -40,7 +40,7 @@ def main(argv=None):
             .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}, axis=1))
         print(variant_reference.head())
     if args.bed_file is not None:
-        print("Using loci file '%s' to filter on variants." % args.variants_file)
+        print("Using loci file '%s' to filter on variants." % args.variant_reference)
         if variants_list is not None:
             print("Variant filter already defined. Skipping...")
         loci = pd.read_csv(args.bed_file, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
