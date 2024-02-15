@@ -5,12 +5,12 @@ import sys
 
 import pandas as pd
 
-from extract_parquet_results import QtlLocusVariantFilter, QtlResultProcessor
+from extract_parquet_results import QtlLocusVariantFilter, QtlResultProcessor, QtlGeneFilter
 
 
-def calculate_ld(input_file, output_file, variant_filters):
+def calculate_ld(input_file, output_file, variant_filters, gene_filter):
     result_processor = QtlResultProcessor(
-        input_file)
+        input_file, gene_filter=gene_filter)
 
     result_processor.variant_filters = variant_filters
 
@@ -43,6 +43,8 @@ def main(argv=None):
                         help="Path to tab-separated output file.")
     parser.add_argument('-B', '--bed-file', required=True, default=None,
                         help="""Bed file with loci to extract""")
+    parser.add_argument('-G', '--genes-file', required = True, default = None,
+                        help = """File with the list of phenotypes to include.""")
     parser.add_argument('-r', '--variant-reference', required=True,
                         help="Reference for variants. Has to be gzipped and space-delimited.")
 
@@ -58,7 +60,10 @@ def main(argv=None):
     print(variant_reference.head())
 
     print("Using loci file '%s' to filter on variants." % args.variants_file)
-    loci = pd.read_csv(args.bed_file, sep="\t", header=None, names=["chromosome", "start", "stop", "name"])
+    loci = pd.read_csv(args.bed_file, sep="\t", header=None, names=["chromosome", "start", "stop"])
+
+    print("Using variants file '%s' to filter on variants." % args.genes_file)
+    qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
 
     for i, (index, row) in enumerate(loci.iterrows()):
         print("Starting export for locus {}/{}".format(i + 1, loci.shape[0]))
@@ -72,7 +77,7 @@ def main(argv=None):
 
         calculate_ld(args.input_file,
                      "{}.{}_{}_{}.csv.gz".format(args.output_prefix, chromosome, start, stop),
-                     [locus_filter])
+                     [locus_filter], qtl_gene_filter)
 
     return 0
 

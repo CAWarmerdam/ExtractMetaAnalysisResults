@@ -40,10 +40,10 @@ process CalculateLdMatrix {
         mkdir tmp_permuted
 
         # Get set of unique genes to use in permuted analysis
-        cat !{uncorrelatedGenes} | sort | uniq > unique_genes_empirical.txt
+        cat !{uncorrelatedGenes} | sort | uniq > unique_genes_permuted.txt
 
         # Get set of genes to use in empirical analysis
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $4}' !{bedFile} | sort | uniq > unique_genes_permuted.txt
+        awk -F'\t' 'BEGIN {OFS = FS} {print $4}' !{bedFile} | sort | uniq > unique_genes_empirical.txt
 
         while read gene; do
           cp -r "!{empirical}/phenotype=${gene}" tmp_empirical/
@@ -58,6 +58,7 @@ process CalculateLdMatrix {
         ld_calculator.py \
         --input-file "tmp_permuted" \
         --variant-reference !{variantReference} \
+        --genes-file !{uncorrelatedGenes} \
         --bed-file ld_window.bed \
         --output-prefix "ld"
 
@@ -65,13 +66,6 @@ process CalculateLdMatrix {
             echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
             echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
-            extract_parquet_results.py \
-                --input-file tmp_empirical \
-                --variant-reference !{variantReference} \
-                --genes ${gene} \
-                --cols '+p_value' \
-                --bed-file "current_locus_as_bed_file.bed" \
-                --output-prefix extracted
         done
         '''
 }
