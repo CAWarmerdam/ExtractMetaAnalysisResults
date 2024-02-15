@@ -46,11 +46,11 @@ process CalculateLdMatrix {
         awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $4}' !{bedFile} | sort | uniq > unique_genes_permuted.txt
 
         while read gene; do
-          cp -r "!{empirical}/${gene}" tmp_eqtls/
+          cp -r "!{empirical}/phenotype=${gene}" tmp_eqtls/
         done <unique_genes_empirical.txt
 
         while read gene; do
-          cp -r "!{permuted}/${gene}" tmp_eqtls/
+          cp -r "!{permuted}/phenotype=${gene}" tmp_eqtls/
         done <unique_genes_permuted.txt
 
         bedtools merge -i !{bedFile} -d 3000000 > ld_window.bed
