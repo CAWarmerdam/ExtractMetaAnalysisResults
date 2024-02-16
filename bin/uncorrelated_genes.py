@@ -46,9 +46,9 @@ def maximum_independent_set(matrix, names):
     return independent_vertices
 
 
-def find_uncorr_genes(r_squared_matrix, names, threshold=0.1):
+def find_uncorr_genes(r_abs_matrix, names, threshold=0.1):
     # Binarise the correlation matrix
-    matrix_threshold = r_squared_matrix > threshold
+    matrix_threshold = r_abs_matrix > threshold
     print(matrix_threshold)
     return maximum_independent_set(matrix_threshold, names)
 
