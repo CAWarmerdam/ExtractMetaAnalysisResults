@@ -66,6 +66,6 @@ process CalculateLdMatrix {
         #    echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
         #    echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
-        done
+        # done
         '''
 }
