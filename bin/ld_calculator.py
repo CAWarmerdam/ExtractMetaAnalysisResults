@@ -15,7 +15,7 @@ def calculate_ld(input_file, output_file, variant_filters, gene_filter):
     result_processor.variant_filters = variant_filters
 
     df = result_processor.extract(
-        add='z_score')
+        add={'z_score'}) 
 
     # pivot the DataFrame to get a matrix of z-scores
     matrix = df.pivot(index='phenotype', columns='variant', values='z_score')
@@ -59,7 +59,7 @@ def main(argv=None):
                 axis=1))
     print(variant_reference.head())
 
-    print("Using loci file '%s' to filter on variants." % args.variants_file)
+    print("Using loci file '%s' to filter on variants." % args.variant_reference)
     loci = pd.read_csv(args.bed_file, sep="\t", header=None, names=["chromosome", "start", "stop"])
 
     print("Using variants file '%s' to filter on variants." % args.genes_file)
