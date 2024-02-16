@@ -62,7 +62,7 @@ process CalculateLdMatrix {
         --bed-file ld_window.bed \
         --output-prefix "ld"
 
-        cat finemapping_loci_cluster_2.bed | tr '\t'  ',' | while IFS=',' read -r chrom start end gene cluster; do
+        cat !{bedFile} | tr '\t'  ',' | while IFS=',' read -r chrom start end gene cluster; do
             echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
             echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
