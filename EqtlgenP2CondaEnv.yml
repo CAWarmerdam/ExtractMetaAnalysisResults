@@ -27,7 +27,7 @@ dependencies:
   - conda-forge::pytables=3.8.0
   - conda-forge::natsort=8.3.1
   - conda-forge::pyarrow=11.0.0
-  - conda-forge::r-base=4.2.2
+  - conda-forge::r-base=4.2.3
   - conda-forge::r-essentials
   - conda-forge::r-data.table
   - conda-forge::r-tidyverse
