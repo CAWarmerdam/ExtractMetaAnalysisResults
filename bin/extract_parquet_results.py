@@ -176,7 +176,7 @@ class QtlResultProcessor:
             filter_list = [base_filter_list]
         return filter_list
     def include_cols(self, cols):
-        for col in list(cols).sort():
+        for col in sorted(cols):
             self._df[col] = self.column_mapping[col]()
 
 
