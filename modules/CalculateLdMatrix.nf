@@ -53,7 +53,7 @@ process CalculateLdMatrix {
           cp -r "!{permuted}/phenotype=${gene}" tmp_permuted/
         done <unique_genes_permuted.txt
 
-        bedtools merge -i !{bedFile} -d 3000000 > ld_window.bed
+        bedtools merge -i !{bedFile} -d 1500000 > ld_window.bed
 
         ld_calculator.py \
         --input-file "tmp_permuted" \
