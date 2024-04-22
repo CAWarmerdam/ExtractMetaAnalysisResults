@@ -32,7 +32,7 @@ library(susieR)
 
 # Main
 print = T
-direct = F
+direct = T
 formatted = T
 
 if(formatted){
@@ -48,33 +48,42 @@ main <- function(argv=NULL) {
   }
 
   # get path of parquet from arguments, but TMP for testing
-  sumstats_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/00/cc7f0912b1e3ea04ba834618529d98/tmp_empirical/phenotype=ENSG00000198756/4e9759f656b9405eb10d4fb23256d8b3.parquet"
+  sumstats_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/tmp_empirical/phenotype=ENSG00000154719/af25b5073d3c4a92a7356b0ff37e276c.parquet"
   # get path of LD from arguments, but TMP for testing
-  ld_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/00/cc7f0912b1e3ea04ba834618529d98/ld.21_15257451_18257451.csv.gz"
+  ld_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/ld.21_27778421_31314679.csv.gz"
   # load in parquet with Robert's strategy
   eQTL <- open_dataset(sumstats_path)
   eQTL_rel <- as_tibble(eQTL)
 
   # load in LD matrix as data.table
-  ldInfo <- fread(ld_path)
-  relLdInfo <- as.matrix(ldInfo, rownames='variant')
+  ldInfo <- fread(ld_path,data.table=F)
+  ldInfo = ldInfo[,-1]
+  rownames(ldInfo) = colnames(ldInfo)
+  relLdInfo <- ldInfo 
   
   
   eQTL_rel = eQTL_rel[which(eQTL_rel$variant %in% rownames(relLdInfo)),]
   relLdInfo = relLdInfo[which(rownames(relLdInfo) %in% eQTL_rel$variant),which(colnames(relLdInfo) %in% eQTL_rel$variant)]
   relLdInfo = relLdInfo[match(eQTL_rel$variant,rownames(relLdInfo)),match(eQTL_rel$variant,colnames(relLdInfo))]
 
+  ##For debug.
+#  png("/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/00/cc7f0912b1e3ea04ba834618529d98/TMP_debug.png")
+#  plot(as.numeric(eQTL_rel$snp_position),-log10(as.numeric(eQTL_rel$p_value)))
+#  dev.off()
+
   if(all(eQTL_rel$variant == rownames(relLdInfo))){
-    fitted_rss2 = tryCatch({
-      fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 5, estimate_residual_variance = TRUE)
-    },error = function(e){
-      fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 5, estimate_residual_variance = FALSE)
-      estimated_res_var = F
-      return(fitted_rss2)
-    })
+#    fitted_rss2 = tryCatch({
+#      fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 5, estimate_residual_variance = TRUE)
+#    },error = function(e){
+#      fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 5, estimate_residual_variance = FALSE)
+#      estimated_res_var = F
+#      return(fitted_rss2)
+#    })
+    fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 10, estimate_residual_variance = FALSE, verbose=T)
 
     print("Finished!")
     print(fitted_rss2$converged)
+    #susie_plot(fitted_rss2, y= "PIP", eQTL_rel$beta)
 
     if(fitted_rss2$converged){
       if(direct){
@@ -90,7 +99,7 @@ main <- function(argv=NULL) {
           }
         }
         lbfOut = t(fitted_rss2$lbf_variable)
-        colnames(lbfOut) = paste("lbf_cs",1:5,sep="_")
+        colnames(lbfOut) = paste("lbf_cs",1:10,sep="_")
         eQTL_rel = cbind(eQTL_rel,lbfOut)
         outMat = rbind(outMat,eQTL_rel)
       }
@@ -100,8 +109,11 @@ main <- function(argv=NULL) {
     
   }
   if(formatted & print){
-    write.table(outMat,"/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/00/cc7f0912b1e3ea04ba834618529d98/finemap_results.txt",quote=F,sep="\t",row.names=F)
+    write.table(outMat,"/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/finemap_results.txt",quote=F,sep="\t",row.names=F)
   }
+}
+if(direct & print){
+  sink()
 }
 
 if (sys.nframe() == 0 && !interactive()) {
