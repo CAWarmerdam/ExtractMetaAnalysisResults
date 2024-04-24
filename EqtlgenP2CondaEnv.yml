@@ -37,4 +37,5 @@ dependencies:
   - conda-forge::r-remotes=2.4.2
   - conda-forge::r-duckdb
   - conda-forge::r-susier
+  - conda-forge::r-rfast
 prefix: ./eQTLGenPhase2Env
