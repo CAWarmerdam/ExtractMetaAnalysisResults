@@ -66,12 +66,15 @@ main <- function(argv=NULL) {
   relLdInfo = relLdInfo[which(rownames(relLdInfo) %in% eQTL_rel$variant),which(colnames(relLdInfo) %in% eQTL_rel$variant)]
   relLdInfo = relLdInfo[match(eQTL_rel$variant,rownames(relLdInfo)),match(eQTL_rel$variant,colnames(relLdInfo))]
 
+  print(eQTL_rel)
+  print(as_tibble(relLdInfo))
+
   if(all(eQTL_rel$variant == rownames(relLdInfo))){
-    fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 10, estimate_residual_variance = FALSE, verbose=T)
+    L = 5
+    fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = L, estimate_residual_variance = FALSE, verbose=T)
 
     print("Finished!")
     print(fitted_rss2$converged)
-    #susie_plot(fitted_rss2, y= "PIP", eQTL_rel$beta)
 
     if(fitted_rss2$converged){
       if(direct){
@@ -87,7 +90,7 @@ main <- function(argv=NULL) {
           }
         }
         lbfOut = t(fitted_rss2$lbf_variable)
-        colnames(lbfOut) = paste("lbf_cs",1:10,sep="_")
+        colnames(lbfOut) = paste("lbf_cs",1:L,sep="_")
         eQTL_rel = cbind(eQTL_rel,lbfOut)
         outMat = rbind(outMat,eQTL_rel)
       }
