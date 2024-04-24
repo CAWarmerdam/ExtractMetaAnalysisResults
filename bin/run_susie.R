@@ -48,10 +48,8 @@ main <- function(argv=NULL) {
   }
 
   # get path of parquet from arguments, but TMP for testing
-  #sumstats_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/tmp_empirical/phenotype=ENSG00000154719/af25b5073d3c4a92a7356b0ff37e276c.parquet"
   sumstats_path = argv[1]
   # get path of LD from arguments, but TMP for testing
-  #ld_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/ld.21_27778421_31314679.csv.gz"
   ld_path = argv[2]
   # load in parquet with Robert's strategy
   eQTL <- open_dataset(sumstats_path)
@@ -68,19 +66,7 @@ main <- function(argv=NULL) {
   relLdInfo = relLdInfo[which(rownames(relLdInfo) %in% eQTL_rel$variant),which(colnames(relLdInfo) %in% eQTL_rel$variant)]
   relLdInfo = relLdInfo[match(eQTL_rel$variant,rownames(relLdInfo)),match(eQTL_rel$variant,colnames(relLdInfo))]
 
-  ##For debug.
-#  png("/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/00/cc7f0912b1e3ea04ba834618529d98/TMP_debug.png")
-#  plot(as.numeric(eQTL_rel$snp_position),-log10(as.numeric(eQTL_rel$p_value)))
-#  dev.off()
-
   if(all(eQTL_rel$variant == rownames(relLdInfo))){
-#    fitted_rss2 = tryCatch({
-#      fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 5, estimate_residual_variance = TRUE)
-#    },error = function(e){
-#      fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 5, estimate_residual_variance = FALSE)
-#      estimated_res_var = F
-#      return(fitted_rss2)
-#    })
     fitted_rss2 = susie_rss(bhat = eQTL_rel$beta, shat = eQTL_rel$standard_error, R = as.matrix(relLdInfo), n = eQTL_rel$sample_size[1], L = 10, estimate_residual_variance = FALSE, verbose=T)
 
     print("Finished!")
@@ -111,7 +97,6 @@ main <- function(argv=NULL) {
     
   }
   if(formatted & print){
-    #write.table(outMat,"/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/finemap_results.txt",quote=F,sep="\t",row.names=F)
     write.table(outMat,argv[3],quote=F,sep="\t",row.names=F)
   }
 }
