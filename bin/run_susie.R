@@ -48,9 +48,11 @@ main <- function(argv=NULL) {
   }
 
   # get path of parquet from arguments, but TMP for testing
-  sumstats_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/tmp_empirical/phenotype=ENSG00000154719/af25b5073d3c4a92a7356b0ff37e276c.parquet"
+  #sumstats_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/tmp_empirical/phenotype=ENSG00000154719/af25b5073d3c4a92a7356b0ff37e276c.parquet"
+  sumstats_path = argv[1]
   # get path of LD from arguments, but TMP for testing
-  ld_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/ld.21_27778421_31314679.csv.gz"
+  #ld_path = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/ld.21_27778421_31314679.csv.gz"
+  ld_path = argv[2]
   # load in parquet with Robert's strategy
   eQTL <- open_dataset(sumstats_path)
   eQTL_rel <- as_tibble(eQTL)
@@ -109,7 +111,8 @@ main <- function(argv=NULL) {
     
   }
   if(formatted & print){
-    write.table(outMat,"/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/finemap_results.txt",quote=F,sep="\t",row.names=F)
+    #write.table(outMat,"/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/ExtractMetaAnalysisResults/work/b5/a52ebf395ab7b62c9b9904b29dffe2/finemap_results.txt",quote=F,sep="\t",row.names=F)
+    write.table(outMat,argv[3],quote=F,sep="\t",row.names=F)
   }
 }
 if(direct & print){
