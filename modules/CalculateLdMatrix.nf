@@ -66,6 +66,10 @@ process CalculateLdMatrix {
             echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
             echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
+            run_susie.R \
+            tmp_empirical/phenotype=${gene}/*.parquet \
+            ld.*.csv.gz \
+            finemapped.${chrom}_${start}_${end}_${gene}.tsv
         done
         '''
 }
