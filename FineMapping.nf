@@ -170,10 +170,10 @@ workflow FINEMAPPING {
         loci_bed_ch
 
     main:
-        finemapped_split_ch = CalculateLdMatrix(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch).collect()
+        finemapped_split_ch = CalculateLdMatrix(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch).flatten()
 
         // Combine finemapped channel into a single file
-        finemapped_ch = finemapped_split_ch.collectFile(name: 'finemapped.tsv', skip: 1, keepHeader: true, cache: 'lenient').collect()
+        finemapped_ch = finemapped_split_ch.collectFile(name: 'finemapped.tsv', skip: 1, keepHeader: true).collect()
         // Write out results
         ExportResults(finemapped_ch)
     emit:
