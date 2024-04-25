@@ -61,14 +61,19 @@ process CalculateLdMatrix {
         --genes-file !{uncorrelatedGenes} \
         --bed-file ld_window.bed \
         --output-prefix "ld"
+        #TODO: cut-off of 0.05 for p-value to filter variants
 
         cat !{bedFile} | tr '\t'  ',' | while IFS=',' read -r chrom start end gene cluster; do
             echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
             echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
             run_susie.R \
-            tmp_empirical/phenotype=${gene}/*.parquet \
+            tmp_empirical/phenotype=${gene} \
             ld.*.csv.gz \
+            !{variantReference} \
+            ${chrom} \
+            ${start} \
+            ${end} \
             finemapped.${chrom}_${start}_${end}_${gene}.tsv
         done
         '''
