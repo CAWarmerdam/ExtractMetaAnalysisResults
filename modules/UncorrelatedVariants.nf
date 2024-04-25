@@ -3,6 +3,7 @@
 
 process GetUncorrelatedVariants {
     tag "${bcf_file.simpleName}"
+    scratch true
 
     input:
         path bcf_file
@@ -28,6 +29,7 @@ process GetUncorrelatedVariants {
 }
 
 process GetUncorrelatedVariantsRestricted {
+    scratch true
     input:
         path bcf_file
 

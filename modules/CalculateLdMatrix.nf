@@ -53,7 +53,7 @@ process CalculateLdMatrix {
           cp -r "!{permuted}/phenotype=${gene}" tmp_permuted/
         done <unique_genes_permuted.txt
 
-        bedtools merge -i !{bedFile} -d 3000000 > ld_window.bed
+        bedtools merge -i !{bedFile} -d 1500000 > ld_window.bed
 
         ld_calculator.py \
         --input-file "tmp_permuted" \
@@ -66,6 +66,10 @@ process CalculateLdMatrix {
             echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
             echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
+            run_susie.R \
+            tmp_empirical/phenotype=${gene}/*.parquet \
+            ld.*.csv.gz \
+            finemapped.${chrom}_${start}_${end}_${gene}.tsv
         done
         '''
 }

@@ -20,6 +20,7 @@ def calculate_ld(input_file, output_file, variant_filters, gene_filter):
     # pivot the DataFrame to get a matrix of z-scores
     matrix = df.pivot(index='phenotype', columns='variant', values='z_score')
 
+    print(f"Running matrix.corr() on a {matrix.shape[0]} by {matrix.shape[1]} matrix... (this might take a while)")
     # calculate the pairwise correlations between variants
     corr_matrix = matrix.corr()
 
