@@ -22,7 +22,7 @@ process UncorrelatedGenes {
 
 process CalculateLdMatrix {
     scratch false
-    publishDir "${params.output}/ld_matrices", mode: 'copy', overwrite: true
+    publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
     input:
         path empirical, stageAs: 'empirical'
@@ -32,7 +32,7 @@ process CalculateLdMatrix {
         path bedFile
 
     output:
-        path "ld.*.csv.gz"
+        path "finemapped.*.tsv"
 
     shell:
         '''
@@ -77,4 +77,22 @@ process CalculateLdMatrix {
             finemapped.${chrom}_${start}_${end}_${gene}.tsv
         done
         '''
+}
+
+process ExportResults {
+  publishDir "${params.output}/finemapped", mode: 'move', overwrite: true
+
+  input:
+      path finemapped
+
+  output:
+      path "finemapped.results.tsv"
+
+  shell:
+      '''
+      filter_finemapped_results.py \
+      -i !{finemapped} \
+      -s naive \
+      -o finemapped.results.tsv
+      '''
 }
