@@ -7,10 +7,9 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
-include { CalculateLdMatrix; UncorrelatedGenes } from './modules/CalculateLdMatrix'
+include { RunFineMappingOnCalculatedLd; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 include { CalculateZScores } from './modules/CalculateZScores'
-include { ExportResults } from './modules/CalculateLdMatrix'
 
 def helpmessage() {
 
@@ -170,7 +169,7 @@ workflow FINEMAPPING {
         loci_bed_ch
 
     main:
-        finemapped_split_ch = CalculateLdMatrix(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch).flatten()
+        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch).flatten()
 
         // Combine finemapped channel into a single file
         finemapped_ch = finemapped_split_ch.collectFile(name: 'finemapped.tsv', skip: 1, keepHeader: true).collect()

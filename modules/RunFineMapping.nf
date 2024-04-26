@@ -20,7 +20,7 @@ process UncorrelatedGenes {
         """
 }
 
-process CalculateLdMatrix {
+process RunFineMappingOnCalculatedLd {
     scratch false
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
