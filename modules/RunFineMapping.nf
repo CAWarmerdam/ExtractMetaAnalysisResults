@@ -20,9 +20,9 @@ process UncorrelatedGenes {
         """
 }
 
-process CalculateLdMatrix {
+process RunFineMappingOnCalculatedLd {
     scratch false
-    publishDir "${params.output}/ld_matrices", mode: 'copy', overwrite: true
+    publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
     input:
         path empirical, stageAs: 'empirical'
@@ -32,7 +32,7 @@ process CalculateLdMatrix {
         path bedFile
 
     output:
-        path "ld.*.csv.gz"
+        path "finemapped.*.tsv"
 
     shell:
         '''
@@ -61,15 +61,38 @@ process CalculateLdMatrix {
         --genes-file !{uncorrelatedGenes} \
         --bed-file ld_window.bed \
         --output-prefix "ld"
+        #TODO: cut-off of 0.05 for p-value to filter variants
 
         cat !{bedFile} | tr '\t'  ',' | while IFS=',' read -r chrom start end gene cluster; do
             echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
             echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
 
             run_susie.R \
-            tmp_empirical/phenotype=${gene}/*.parquet \
+            tmp_empirical/phenotype=${gene} \
             ld.*.csv.gz \
+            !{variantReference} \
+            ${chrom} \
+            ${start} \
+            ${end} \
             finemapped.${chrom}_${start}_${end}_${gene}.tsv
         done
         '''
+}
+
+process ExportResults {
+  publishDir "${params.output}/finemapped", mode: 'move', overwrite: true
+
+  input:
+      path finemapped
+
+  output:
+      path "finemapped.results.tsv"
+
+  shell:
+      '''
+      filter_finemapped_results.py \
+      -i !{finemapped} \
+      -s naive \
+      -o finemapped.results.tsv
+      '''
 }

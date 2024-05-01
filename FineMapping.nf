@@ -7,7 +7,7 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
-include { CalculateLdMatrix; UncorrelatedGenes } from './modules/CalculateLdMatrix'
+include { RunFineMappingOnCalculatedLd; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 include { CalculateZScores } from './modules/CalculateZScores'
 
@@ -57,6 +57,7 @@ Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.reference_data).set { reference_bcf_files_ch }
 Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
+//Channel.fromPath(params.available_genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { available_genes_ch }
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
@@ -112,6 +113,7 @@ workflow GENE_CORRELATIONS {
         permuted_parquet_ch
         variant_reference_ch
         genes_buffered_ch
+        // available_genes_ch
 
     main:
         // Obtain a list of uncorrelated variants
@@ -119,6 +121,7 @@ workflow GENE_CORRELATIONS {
             .collectFile(name: 'merged.prune.in', newLine: true, cache: 'lenient').collect()
 
         // Calculate the Z-scores for each gene list in the genes channel
+        // z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, available_genes_ch)
         z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch)
 
         // Combine Z-scores channel into a single file
@@ -166,9 +169,14 @@ workflow FINEMAPPING {
         loci_bed_ch
 
     main:
-        ld_ch = CalculateLdMatrix(
-                    empirical_parquet_ch, permuted_parquet_ch,
-                    variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch)
+        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch).flatten()
+
+        // Combine finemapped channel into a single file
+        finemapped_ch = finemapped_split_ch.collectFile(name: 'finemapped.tsv', skip: 1, keepHeader: true).collect()
+        // Write out results
+        ExportResults(finemapped_ch)
+    emit:
+      finemapped = finemapped_ch
 }
 
 workflow {
@@ -176,13 +184,11 @@ workflow {
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
     // By default, always calculate gene correlations, and always run getting loci
+    // GENE_CORRELATIONS(reference_bcf_files_ch,permuted_parquet_ch,variant_reference_ch,genes_buffered_ch,available_genes_ch)
     GENE_CORRELATIONS(reference_bcf_files_ch,permuted_parquet_ch,variant_reference_ch,genes_buffered_ch)
 
     uncorrelated_genes_buffered_ch = GENE_CORRELATIONS.out.uncorrelated_genes
         .splitCsv(header: ['gene']).map { row -> "${row.gene}" }.collate(gene_chunk_size)
-
-    // ^^^ werkt
-    // hieronder shaky
 
     // Define loci to do finemapping for
     LOCI(
