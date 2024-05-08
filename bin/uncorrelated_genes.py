@@ -66,7 +66,7 @@ def grid_search(abs_corr_matrix):
     for threshold in [x / 100.0 for x in range(5, 20, 1)]:
         print(threshold)
         uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
-                                               names=corr_matrix.columns, threshold=threshold)
+                                               names=abs_corr_matrix.columns, threshold=threshold)
         number_of_uncorrelated_genes[threshold] = len(uncorrelated_genes)
         print("{}\t{}".format(threshold, len(uncorrelated_genes)), file=open('number_of_uncorrelated_genes.csv', 'a'))
 
