@@ -49,6 +49,7 @@ params.variants = 'NO_FILE'
 params.gene_variant_pairs = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
 params.cols = '+p_value,+z_score'
+params.p_threshold = 'NULL'
 params.output
 
 if (params.help){
@@ -58,7 +59,7 @@ if (params.help){
 
 //Default parameters
 Channel.fromPath(params.input).collect().set { input_parquet_ch }
-Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
+Channel.fromPath(params.genes).splitCsv(header: true).map { row -> "${row.ID}" } .set { genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
@@ -81,6 +82,7 @@ locus_chunk_size=100
 extract_variants = params.variants != "NO_FILE"
 extract_gene_variant_pairs = params.gene_variant_pairs != "NO_FILE"
 extract_loci = params.bed != "NO_FILE"
+annotate = params.maf_table != "NO_FILE"
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
@@ -165,7 +167,7 @@ workflow {
 
     if ( extract_loci == false & extract_variants == false & extract_gene_variant_pairs == false) {
         // Extract all
-        all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
+        all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols, params.p_threshold)
             .flatten()
             .map { file ->
                    def key = file.name.toString().tokenize('.').get(1)
@@ -173,7 +175,11 @@ workflow {
             .groupTuple().view()
 
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
+        if (annotate) {
+            variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
+        } else {
+            all_extracted_ch.collectFile(name: 'extracted_merged.txt', skip: 1, keepHeader: true, storeDir: params.output)
+        }
 
     }
 

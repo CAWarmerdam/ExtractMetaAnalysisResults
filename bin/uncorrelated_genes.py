@@ -59,15 +59,18 @@ def main(argv=None):
 
     # parse command-line arguments
     parser = argparse.ArgumentParser(description='Calculate correlations between z-scores and find uncorrelated genes')
-    parser.add_argument('--zscores-file', dest='input_file', help='Path to the input CSV file',
+    parser.add_argument('--zscores-file-long', dest='input_file', help='Path to the input CSV file',
                         default=None, required=False)
+    parser.add_argument('--input-prefix', dest='input_prefix', required=False)
     parser.add_argument('--output-file', dest='output_file', help='Path to the output file')
     parser.add_argument('--gene-correlations', dest='gene_correlations', help='Path to gene correlations. Will ignore input_file.',
                         default=None, required=False)
     parser.add_argument('-t', '--threshold', type=float, default=0.5, help='Correlation threshold (default: 0.5)')
+    parser.add_argument('-n', '--n-threshold', type=float, default=0, help='Minimum sample size of gene-variant pairs to consider for gene-gene correlations')
     args = parser.parse_args()
 
     corr_matrix = None
+    sample_size_threshold = args.n_threshold
 
     if args.gene_correlations is not None:
         print("Loading gene correlations: {}".format(args.gene_correlations))
@@ -92,6 +95,25 @@ def main(argv=None):
 
         # calculate the pairwise correlations between genes
         corr_matrix = matrix.corr()
+
+        corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
+
+    if args.input_prefix is not None:
+        if corr_matrix is not None:
+            raise ValueError("Correlation matrix is already defined, skipping input prefix")
+
+        input_file_z = args.input_prefix + ".z.txt"
+        input_file_n = args.input_prefix + ".n.txt"
+        print("Loading Z-scores: {}".format(input_file_z))
+        # read the input file into a pandas DataFrame
+        z_matrix = pd.read_csv(input_file_z, sep="\t", index_col='variant')
+        print("Loading sample-size threshold: {}".format(input_file_n))
+        n_matrix = pd.read_csv(input_file_n, sep="\t", index_col='variant')
+
+        print(z_matrix)
+
+        # calculate the pairwise correlations between genes
+        corr_matrix = z_matrix[n_matrix >= sample_size_threshold].corr()
 
         corr_matrix.to_csv("gene_correlation_matrix.csv.gz")
 

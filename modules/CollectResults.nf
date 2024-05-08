@@ -20,6 +20,7 @@ process SplitGeneVariantPairs {
 
 process ExtractVariants {
     scratch true
+    publishDir "${params.output}", mode: 'copy', overwrite: true, enabled: true, saveAs: { fn -> "${genes[0]}.out.csv" }
 
     input:
         path input
@@ -27,12 +28,14 @@ process ExtractVariants {
         val genes
         path variants
         val cols
+        val p_threshold
 
     output:
         path "extracted*.out.csv"
 
     shell:
         variants_arg = (variants.name != 'NO_FILE') ? "--variants-file ${variants}" : ""
+        p_threshold_arg = (p_threshold != 'NULL') ? "--p-thresh ${p_threshold}" : ""
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         prefix = (genes.size() == 1) ? genes.collect { "extracted.$it" }.join("") : "extracted"
         '''
@@ -47,6 +50,7 @@ process ExtractVariants {
             --input-file tmp_eqtls \
             --genes !{genes.join(' ')} \
             !{variants_arg} \
+            !{p_threshold_arg} \
             --variant-reference !{variant_reference} \
             --output-prefix !{prefix} \
             --cols '!{cols}'

@@ -146,7 +146,7 @@ def main(argv=None):
     # Process input
     parser = argparse.ArgumentParser(description='Annotate significant eQTL results with variant and gene information')
 
-    parser.add_argument('--input-file', dest='input_file', required=True,
+    parser.add_argument('--input-file', dest='input_file', required=True, nargs='+',
                         help='Path to the table containing eQTL results')
     parser.add_argument('--cohorts', dest='cohorts', required=True, nargs='+',
                         help='Names of cohorts used in the meta-analysis')
@@ -178,8 +178,8 @@ def main(argv=None):
 
     maf_dataframe = (
         pd.read_table(args.maf)
-        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR"], axis=1)
-        .rename({"ID": "variant", "OtherAllele": "other_allele_maf", "Allele": "allele_maf"}, axis=1)
+        .drop(["MedianMaf", "CombinedMaf", "POS", "CHR"], axis=1, errors='ignore')
+        .rename({"ID": "variant", "REF": "other_allele_maf", "ALT": "allele_maf"}, axis=1)
         .set_index("variant"))
 
     maf_dataframe = pd.merge(maf_dataframe, variant_reference,
@@ -207,21 +207,18 @@ def main(argv=None):
 
     # gencode_parser = GencodeParser(args.gene_gff)
     # gene_dataframe = gencode_parser.df
-    eqtls = pd.read_csv(args.input_file, sep='\t')
+    is_first = True
+    for input_file in args.input_file:
+        eqtls = pd.read_csv(input_file, sep='\t')
 
-    # Perform method
-    # eqtls_annotated = (
-    #     eqtls
-    #     .merge(variant_reference, how="left", on="variant")
-    #     .merge(gene_dataframe, how="left", left_on="phenotype", right_on="gene_id"))
+        eqtls_annotated = (
+            eqtls.merge(variant_reference, how="left", on="variant"))
 
-    eqtls_annotated = (
-        eqtls.merge(variant_reference, how="left", on="variant"))
+        maf = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
+        eqtls_annotated['allele_eff_freq'] = maf.values
 
-    maf = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
-    eqtls_annotated['allele_eff_freq'] = maf.values
-
-    eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), sep="\t", index=False)
+        eqtls_annotated.to_csv("{}.csv.gz".format(args.out_prefix), mode='a', header=is_first, sep="\t", index=False)
+        is_first = False
     # Output
     return 0
 
