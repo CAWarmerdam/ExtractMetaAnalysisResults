@@ -28,14 +28,19 @@ dependencies:
   - conda-forge::natsort=8.3.1
   - conda-forge::pyarrow=11.0.0
   - conda-forge::r-base=4.2.3
-  - conda-forge::r-essentials
-  - conda-forge::r-data.table
-  - conda-forge::r-tidyverse
-  - conda-forge::r-argparse
-  - conda-forge::r-rsqlite
-  - conda-forge::r-arrow
+  - conda-forge::r-conflicted=1.2.0
+  - conda-forge::r-essentials=4.2
+  - conda-forge::r-rcpp=1.0.8.3
+  - conda-forge::r-rcpparmadillo=0.11.1.1.0
+  - conda-forge::r-rcppparallel=5.1.5
+  - conda-forge::r-rcppziggurat=0.1.6
+  - conda-forge::r-data.table=1.15.2
+  - conda-forge::r-tidyverse=2.0.0
+  - conda-forge::r-argparse=2.2.3
+  - conda-forge::r-rsqlite=2.3.4
+  - conda-forge::r-arrow=11.0.0
   - conda-forge::r-remotes=2.4.2
-  - conda-forge::r-duckdb
-  - conda-forge::r-susier
-  - conda-forge::r-rfast
+  - conda-forge::r-duckdb=0.10.2
+  - conda-forge::r-susier=0.12.35
+  - conda-forge::r-rfast=2.1.0
 prefix: ./eQTLGenPhase2Env
