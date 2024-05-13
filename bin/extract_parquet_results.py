@@ -214,20 +214,14 @@ def column_specification(cols):
 
 
 def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, column_specifications, p_thresh=None, as_matrix=False):
-    first = True
     file_conns = dict()
     columns_to_write = column_specifications[""].union(column_specifications["+"])
     try:
         if as_matrix:
             for col in columns_to_write:
                 file_conns[col] = open("{}.out.{}.csv".format(output_prefix, col), 'w')
-        else:
-            file_conns["long"] = open("{}.out.csv".format(output_prefix), 'w')
-        for gene in qtl_gene_filter.get_values():
-            print("Gene {}".format(gene))
-            qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
             result_processor = QtlResultProcessor(
-                input_file, qtl_single_gene_filter)
+                input_file, qtl_gene_filter)
             result_processor.variant_filters = variant_filters
             if p_thresh is not None:
                 result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
@@ -235,14 +229,25 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
                 cols=column_specifications[""],
                 drop=column_specifications["-"],
                 add=column_specifications["+"])
-            if as_matrix:
-                print(df)
-                print(df.columns)
-                for col in columns_to_write:
-                    pd.pivot(df, columns="variant", index="phenotype", values=col).to_csv(file_conns[col], sep="\t", header=first, index=True, na_rep="NA")
-            else:
+            for col in columns_to_write:
+                pd.pivot(df, columns="phenotype", index="variant", values=col).to_csv(file_conns[col], sep="\t", header=True, index=True, na_rep="NA")
+        else:
+            first = True
+            file_conns["long"] = open("{}.out.csv".format(output_prefix), 'w')
+            for gene in qtl_gene_filter.get_values():
+                print("Gene {}".format(gene))
+                qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
+                result_processor = QtlResultProcessor(
+                    input_file, qtl_single_gene_filter)
+                result_processor.variant_filters = variant_filters
+                if p_thresh is not None:
+                    result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
+                df = result_processor.extract(
+                    cols=column_specifications[""],
+                    drop=column_specifications["-"],
+                    add=column_specifications["+"])
                 df.to_csv(file_conns["long"], sep="\t", header=first, index=None)
-            first = False
+                first = False
     finally:
         print("Done!")
         for file_conn in file_conns.values():
