@@ -239,7 +239,7 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
                 print(df)
                 print(df.columns)
                 for col in columns_to_write:
-                    pd.pivot(df, columns="variant", index="phenotype", values=col).to_csv(file_conns[col], sep="\t", header=first, index=True)
+                    pd.pivot(df, columns="variant", index="phenotype", values=col).to_csv(file_conns[col], sep="\t", header=first, index=True, na_rep="NA")
             else:
                 df.to_csv(file_conns["long"], sep="\t", header=first, index=None)
             first = False
@@ -322,7 +322,7 @@ def main(argv=None):
     if args.n_threshold is not None:
         n_threshold_filter = QtlNThresholdFilter(args.n_threshold)
 
-    if args.variant_reference is not None and (args.variant_list is not None or args.variants_file is not None):
+    if args.variant_reference is not None and (args.variants is not None or args.variants_file is not None or args.bed_file is not None):
         variant_reference = (
             pd.read_csv(args.variant_reference, sep = ' ')
             .drop(["allele1", "allele2"], axis=1)
