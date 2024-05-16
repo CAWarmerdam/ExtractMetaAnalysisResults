@@ -137,8 +137,10 @@ def main(argv=None):
         # calculate the pairwise correlations between genes
         filtered_z_matrix = (
             z_matrix[n_matrix >= sample_size_threshold]
-            .dropna(axis=0, how='all', inplace=False))
-        corr_matrix = filtered_z_matrix.loc[:,filtered_z_matrix.isna().sum() < len(filtered_z_matrix) * 0.5].corr()
+            .dropna(axis=0, how='all', inplace=False)
+            .dropna(axis=1, how='any', inplace=False))
+        corrcoef_values = np.corrcoef(filtered_z_matrix.values.T)
+        corr_matrix = pd.DataFrame(corrcoef_values, index=filtered_z_matrix.columns, columns=filtered_z_matrix.columns)
 
         corr_matrix.to_csv("gene_correlation_matrix.csv.gz", sep="\t", index_label="phenotype")
 
@@ -153,8 +155,7 @@ def main(argv=None):
 
     print(abs_corr_matrix)
 
-    uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
-                                           names=corr_matrix.columns, threshold=threshold)
+    uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(), names=corr_matrix.columns, threshold=threshold)
 
     write_uncorrelated_genes(uncorrelated_genes, output_file)
 
