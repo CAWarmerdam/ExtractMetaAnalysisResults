@@ -10,6 +10,7 @@ process CalculateZScoreMatrix {
         val genes
         val variants
         val n_threshold
+        val cohorts
 
     output:
         path "z_scores.out.z_score.csv", emit: z_scores
@@ -17,6 +18,7 @@ process CalculateZScoreMatrix {
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
+        cohort_arg = (cohorts.size() == 1) ? "--cohort ${cohorts[0]}" : ""
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
@@ -33,7 +35,7 @@ process CalculateZScoreMatrix {
             --output-prefix z_scores \
             --n-threshold !{n_threshold} \
             --as-matrix \
-            --cols 'sample_size,+z_score'
+            --cols 'sample_size,+z_score' !{cohort_arg}
 
         rm -r tmp_eqtls
         '''
@@ -43,7 +45,7 @@ process ConcatMatrix {
     publishDir "${params.output}/exported_matrix", mode: 'copy', overwrite: true
 
     input:
-        path matrix
+        path matrix, stageAs: "z_scores.out.*.csv"
         val name
 
     output:

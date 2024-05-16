@@ -60,6 +60,12 @@ class QtlGeneFilter(QtlSetFilter):
         super().__init__(genes)
 
 
+class QtlCohortFilter(QtlSetFilter):
+    _field_name = "cohort"
+    def __init__(self, cohorts):
+        super().__init__(cohorts)
+
+
 class QtlChromosomeFilter(QtlFilter):
     _field_name = "chromosome"
     _operator = "=="
@@ -117,6 +123,7 @@ class QtlResultProcessor:
         self.variant_filters = None
         self.significance_filter = None
         self.n_filter = None
+        self.cohort_filter = None
         self.column_mapping = \
             {"t_stat": self.t_stat,
              "z_score": self.z_score,
@@ -137,7 +144,6 @@ class QtlResultProcessor:
         if cols is None:
             cols = set()
         filters = self.get_filters()
-        print(filters)
         dataset = pq.ParquetDataset(
             self.path, validate_schema=True,
             filters=filters)
@@ -188,6 +194,9 @@ class QtlResultProcessor:
             return stats.t.sf(np.abs(self.z_score()), degrees_of_freedom)*2
     def get_filters(self):
         base_filter_list = [self.gene_filter.get_filter()]
+        if self.cohort_filter is not None:
+            base_filter_list += [self.cohort_filter.get_filter()]
+        print(base_filter_list)
         if self.variant_filters is not None:
             filter_list = [base_filter_list + var_filter.get_filters() for var_filter in self.variant_filters]
         else:
@@ -213,7 +222,7 @@ def column_specification(cols):
     return column_specifications
 
 
-def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, column_specifications, p_thresh=None, as_matrix=False):
+def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, cohort_filter, column_specifications, p_thresh=None, as_matrix=False):
     file_conns = dict()
     columns_to_write = column_specifications[""].union(column_specifications["+"])
     try:
@@ -223,6 +232,7 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
             result_processor = QtlResultProcessor(
                 input_file, qtl_gene_filter)
             result_processor.variant_filters = variant_filters
+            result_processor.cohort_filter = cohort_filter 
             if p_thresh is not None:
                 result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
             df = result_processor.extract(
@@ -240,6 +250,7 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
                 result_processor = QtlResultProcessor(
                     input_file, qtl_single_gene_filter)
                 result_processor.variant_filters = variant_filters
+                result_processor.cohort_filter = cohort_filter 
                 if p_thresh is not None:
                     result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
                 df = result_processor.extract(
@@ -256,7 +267,7 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
             print("Closing output file '{}'".format(os.path.basename(file_conn.name)))
 
 
-def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, column_specifications, p_thresh=None, as_matrix=False):
+def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, cohort_filter, column_specifications, p_thresh=None, as_matrix=False):
     first = True
     with open(output_file, 'w') as f:
         for gene,chunk in qtl_gene_variant_df.groupby('gene'):
@@ -267,6 +278,7 @@ def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, column_
                 input_file, qtl_single_gene_filter)
             variant_filters = [QtlLocusVariantFilter(chromosome, variant_chunk['variant']) for chromosome, variant_chunk in chunk.groupby('chromosome')]
             result_processor.variant_filters = variant_filters
+            result_processor.cohort_filter = cohort_filter
             if p_thresh is not None:
                 result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
             df = result_processor.extract(
@@ -314,6 +326,7 @@ def main(argv=None):
     parser.add_argument('-n', '--n-threshold', required=False, default=None,
                         help = "Minimal sample size")
     parser.add_argument('-m', '--as-matrix', dest="as_matrix", required=False, default=False, action='store_true')
+    parser.add_argument('-C', '--cohort', required=False, default=None)
 
     args = parser.parse_args(argv[1:])
 
@@ -322,7 +335,11 @@ def main(argv=None):
     variant_reference = None
     variants_list = None
     variant_filters = None
+    cohort_filter = None
     loci = None
+
+    if args.cohort is not None:
+        cohort_filter = QtlCohortFilter({args.cohort,})
 
     if args.n_threshold is not None:
         n_threshold_filter = QtlNThresholdFilter(args.n_threshold)
@@ -343,7 +360,7 @@ def main(argv=None):
         print("Starting export")
         output_file = "{}.out.csv".format(args.output_prefix)
         export_write_qtl_pairs(args.input_file, output_file,
-                     processed_gene_variant_pairs,
+                     processed_gene_variant_pairs, cohort_filter,
                      args.column_specifications, args.p_thresh)
         return 0
         
@@ -386,7 +403,7 @@ def main(argv=None):
     if loci is None:
         print("Starting export")
         export_write(args.input_file, args.output_prefix,
-                     qtl_gene_filter, variant_filters,
+                     qtl_gene_filter, variant_filters, cohort_filter,
                      args.column_specifications, args.p_thresh, args.as_matrix)
 
     else:
@@ -407,7 +424,7 @@ def main(argv=None):
             output_file = "{}.{}_{}-{}.out.csv".format(args.output_prefix, chromosome, start, stop)
 
             export_write(args.input_file, output_file,
-                         qtl_gene_filter, [locus_filter],
+                         qtl_gene_filter, [locus_filter], cohort_filter,
                          args.column_specifications, args.p_thresh, args.as_matrix)
 
     return 0

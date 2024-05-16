@@ -6,7 +6,7 @@
 nextflow.enable.dsl = 2
 
 // import modules
-include { UncorrelatedGenes } from './modules/CalculateLdMatrix'
+include { UncorrelatedGenes } from './modules/RunFineMapping'
 include { CalculateZScoreMatrix; ConcatMatrix as ConcatZScoresMatrix; ConcatMatrix as ConcatSampleSizeMatrix } from './modules/CalculateZScores'
 
 def helpmessage() {
@@ -57,7 +57,7 @@ n_threshold = Channel.fromPath(new File(params.inclusion_dir, "filter_logs.log")
     .map { row -> [row.Dataset, row.N] }
     .join(cohorts_ch).view().map { row -> row[1] }.toInteger().sum().view()
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
-Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
+Channel.fromPath(params.genes).splitCsv(header: true).map { row -> "${row.ID}" } .set { genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.uncorrelated_variants).collect().set { uncorrelated_variants_ch }
 
@@ -89,14 +89,14 @@ log.info "======================================================="
 
 workflow {
     // Buffer genes
-    genes_buffered_ch = genes_ch.collate(gene_chunk_size).first()
+    genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
     // Retrieve Z scores
-    z_scores_split_ch = CalculateZScoreMatrix(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, n_threshold)
+    z_scores_split_ch = CalculateZScoreMatrix(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, n_threshold, cohorts_ch.collect())
 
     // Combine Z-scores channel into a single file
-    zscore_ch = ConcatZScoresMatrix(z_scores_split_ch.z_scores.collect(), 'mat.z.txt')
-    sample_size_ch = ConcatSampleSizeMatrix(z_scores_split_ch.sample_size.collect(), 'mat.n.txt')
+    zscore_ch = ConcatZScoresMatrix(z_scores_split_ch.z_scores.collect(), Channel.value('mat.z.txt'))
+    sample_size_ch = ConcatSampleSizeMatrix(z_scores_split_ch.sample_size.collect(), Channel.value('mat.n.txt'))
 
     zscore_ch.view()
 
