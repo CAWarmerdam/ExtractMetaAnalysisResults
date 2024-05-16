@@ -121,11 +121,12 @@ workflow {
 
     if ( extract_gene_variant_pairs ) {
         SplitGeneVariantPairs(gene_variant_pairs_ch,gene_chunk_size)
+        
         // Extract variants
-        variants_extracted_ch = ExtractGeneVariantPairs(input_parquet_ch, variant_reference_ch, SplitGeneVariantPairs.out.flatten(), params.cols)
+        variants_extracted_ch = ExtractGeneVariantPairs(input_parquet_ch, variant_reference_ch, SplitGeneVariantPairs.out.flatten().view(), params.cols)
             .flatten()
             .map { file ->
-                   def key = variants_ch.baseName
+                   def key = file.simpleName
                    return tuple(key, file) }
             groupTuple()
 
@@ -178,7 +179,9 @@ workflow {
         if (annotate) {
             variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
         } else {
-            all_extracted_ch.collectFile(name: 'extracted_merged.txt', skip: 1, keepHeader: true, storeDir: params.output)
+            all_extracted_ch
+                .map{ row -> row[1] }
+                .collectFile(name: 'extracted_merged.txt', skip: 1, keepHeader: true, storeDir: params.output)
         }
 
     }
