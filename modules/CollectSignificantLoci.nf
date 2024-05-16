@@ -5,14 +5,17 @@ process ExtractSignificantResults {
 
     input:
         path input
+        path variantReference
+        path geneReference
+        path inclusionDir
         val genes
         val p_value
+        val cohorts
 
     output:
-        path "loci.out.csv"
+        path "sign_variants.csv", optional:true
 
     shell:
-        gene_arg = genes.join(" ")
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         '''
         mkdir tmp_eqtls
@@ -24,10 +27,18 @@ process ExtractSignificantResults {
 
         extract_parquet_results.py \
             --input-file tmp_eqtls \
-            --genes !{gene_arg} \
+            --genes !{genes.join(' ')} \
             --p-thresh !{p_value} \
             --cols "+p_value" \
-            --output-prefix loci
+            --output-prefix extracted
+
+        annotate_lead_variants.py \
+            --input-file extracted.out.csv \
+            --cohorts !{cohorts.join(' ')} \
+            --inclusion-path !{inclusionDir} \
+            --variant-reference !{variantReference} \
+            --gene-ref !{geneReference} \
+            --out-prefix annotated.
 
         rm -r tmp_eqtls
         '''
@@ -52,75 +63,39 @@ process AnnotateResults {
         """
 }
 
-process IntersectLoci {
+process DefineFineMappingLoci {
     input:
-        path variantLoci
-        val variantFlankSize
-        path bedFile
+        path signVariants
         path genomeRef
-        path cisTransGenes
 
     output:
-        path "merged.bed"
-
-    script:
-        // Define background bed file to take into account
-        def bed = bedFile.name != 'NO_FILE' ? "$bedFile" : ''
-
-        // Calculate flanks for genes, calculate flanks for snps, calculate union.
-        """
-        grep -F -f ${cisTransGenes} "${variantLoci}" > "filtered_variant_loci.bed"
-
-        bedtools slop -i "filtered_variant_loci.bed" -g "${genomeRef}" -b "${variantFlankSize}" > "variant_loci.flank.bed"
-
-        cat "variant_loci.flank.bed" ${bed} > "total.flank.bed"
-
-        # Get the union of the two bed files (including flanks)
-        bedtools sort -i "total.flank.bed" > "total.flank.sorted.bed"
-        bedtools merge -i "total.flank.sorted.bed" -d 0 -c 4 -o distinct > "merged.bed"
-        """
-}
-
-process SelectFollowUpLoci {
-    input:
-        path variantBed
-        val variantFlankSize
-        path genomeRef
-        val genes
-
-    output:
-        path "cis_trans_intersection_genes.bed"
+        path "finemapping_loci_*.bed"
 
     shell:
-        // Merge loci per gene
-        gene_arg = genes.join("\n")
         '''
-        echo "!{gene_arg}" > genes.txt
+        # Input is expected to be a table of significant results, with the following columns:
+        # 7: Chromosome of the variant of the significant eQTL
+        # 10: Basepair position of the variant of the significant eQTL
+        # 2: ENSG identifier of the gene of the significant eQTL
 
-        touch cis_loci_merged_per_gene.bed
-        touch trans_loci_merged_per_gene.bed
+        # First, get the relevant columns to make a bed file, and apply a splop to make a total
+        # window of 3Mb
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $12,$9,$9,$2}' !{signVariants} \
+        | bedtools slop -b 1500000 -g !{genomeRef} > loci_3Mb_window.bed
 
-        grep "True" !{variantBed} > cis_effects.bed
-        grep "False" !{variantBed} > trans_effects.bed
+        # Second, extract the gene ENSG identifiers, and get a set of identifiers, removing duplicates
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $2}' !{signVariants} | sort | uniq > unique_genes.txt
 
-        cut -d$'\t' -f4 cis_effects.bed | sort | uniq > cis_genes.txt
-        cut -d$'\t' -f4 trans_effects.bed | sort | uniq > trans_genes.txt
-
+        # Loop through the set of ENSG identifiers, merging the loci for each gene
         while read g; do
-          grep "$g" cis_effects.bed | bedtools sort | bedtools merge -d 250000 -c 4,5 -o distinct >> cis_loci_merged_per_gene.bed
-        done < cis_genes.txt
+            grep "$g" loci_3Mb_window.bed | bedtools sort | bedtools merge -c 4 -o distinct >> loci_3Mb_merged_per_gene.bed
+        done < unique_genes.txt
 
-        while read g; do
-          grep "$g" trans_effects.bed | bedtools sort | bedtools merge -d 250000 -c 4,5 -o distinct >> trans_loci_merged_per_gene.bed
-        done < trans_genes.txt
+        # Sort the resulting bed file
+        bedtools sort -i loci_3Mb_merged_per_gene.bed > loci_3Mb_merged_per_gene_sorted.bed
 
-        bedtools intersect \
-          -a cis_loci_merged_per_gene.bed \
-          -b trans_loci_merged_per_gene.bed \
-          -wa -wb > cis_trans_intersection.bed
-
-        cut -d$'\t' -f4 cis_trans_intersection.bed > cis_trans_intersection_genes.bed
-	cut -d$'\t' -f9 cis_trans_intersection.bed >> cis_trans_intersection_genes.bed
+        # Assign your windows to clusters.
+        assign_clusters.py loci_3Mb_merged_per_gene_sorted.bed 5000000 finemapping_loci
         '''
 }
 
@@ -140,11 +115,11 @@ process AnnotateLoci {
 
     script:
         """
-        head -n 1 ${files[0]} > concatenated.${locus_string}.csv
-        tail -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
+        head --quiet -n 1 ${files[0]} > concatenated.${locus_string}.csv
+        tail --quiet -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
 
         annotate_loci.py \
-            --input-file concatenated.${locus_string}.csv \
+            --input-file ${files.join(' ')} \
             --cohorts ${cohorts.join(' ')} \
             --variant-reference ${variantReference} \
             --gene-gff ${geneReference} \
