@@ -64,7 +64,7 @@ process ExtractGeneVariantPairs {
     scratch true
 
     input:
-	    path input
+        path input
         path variant_reference
         path gene_variant_pairs
         val cols
@@ -75,7 +75,7 @@ process ExtractGeneVariantPairs {
     shell:
         out_prefix = getSimpleName(gene_variant_pairs)
         '''
-	    mkdir tmp_eqtls
+        mkdir tmp_eqtls
         awk '{FS="\t"; OFS="\t"} {print "phenotype="$2}' !{gene_variant_pairs} | sort | uniq > file_matches.txt
 
         while read gene; do
