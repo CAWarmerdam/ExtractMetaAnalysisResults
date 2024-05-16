@@ -121,11 +121,12 @@ workflow {
 
     if ( extract_gene_variant_pairs ) {
         SplitGeneVariantPairs(gene_variant_pairs_ch,gene_chunk_size)
+        
         // Extract variants
         variants_extracted_ch = ExtractGeneVariantPairs(input_parquet_ch, variant_reference_ch, SplitGeneVariantPairs.out.flatten().view(), params.cols)
             .flatten()
             .map { file ->
-                   def key = variants_ch.baseName
+                   def key = file.simpleName
                    return tuple(key, file) }
             groupTuple()
 
