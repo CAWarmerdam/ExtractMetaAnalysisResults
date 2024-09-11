@@ -62,14 +62,12 @@ def write_uncorrelated_genes(uncorrelated_genes, output_file):
 def grid_search(abs_corr_matrix):
     number_of_uncorrelated_genes = dict()
     print("Threshold\tN", file=open('number_of_uncorrelated_genes.csv', 'w'))
-
-    for threshold in [x / 100.0 for x in range(5, 20, 1)]:
+    for threshold in [x / 100.0 for x in range(1, 5, 1)]:
         print(threshold)
         uncorrelated_genes = find_uncorr_genes(abs_corr_matrix.to_numpy(),
                                                names=abs_corr_matrix.columns, threshold=threshold)
         number_of_uncorrelated_genes[threshold] = len(uncorrelated_genes)
         print("{}\t{}".format(threshold, len(uncorrelated_genes)), file=open('number_of_uncorrelated_genes.csv', 'a'))
-
         # write the list of uncorrelated genes to a file
         with open("uncorrelated_genes_N{}.txt".format(len(uncorrelated_genes)), 'w') as f:
             f.write('\n'.join(uncorrelated_genes))
