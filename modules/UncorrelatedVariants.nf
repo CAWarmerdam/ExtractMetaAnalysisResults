@@ -22,8 +22,8 @@ process GetUncorrelatedVariants {
             --maf 0.05 \
             --geno 0.01 \
             --hwe 0.05 \
-            --bp-space 100000 \
-            --indep-pairwise 100 5 0.1
+            --bp-space 1000 \
+            --indep-pairwise 50mb 5 0.05
 
         """
 }

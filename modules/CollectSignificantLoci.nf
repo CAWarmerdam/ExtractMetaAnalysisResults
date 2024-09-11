@@ -115,11 +115,11 @@ process AnnotateLoci {
 
     script:
         """
-        head -n 1 ${files[0]} > concatenated.${locus_string}.csv
-        tail -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
+        head --quiet -n 1 ${files[0]} > concatenated.${locus_string}.csv
+        tail --quiet -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
 
         annotate_loci.py \
-            --input-file concatenated.${locus_string}.csv \
+            --input-file ${files.join(' ')} \
             --cohorts ${cohorts.join(' ')} \
             --variant-reference ${variantReference} \
             --gene-gff ${geneReference} \

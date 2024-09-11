@@ -1,8 +1,7 @@
 #!/bin/bash nextflow
 
 
-process CalculateZScores {
-    cache 'lenient'
+process CalculateZScoreMatrix {
     scratch true
 
     input:
@@ -10,12 +9,16 @@ process CalculateZScores {
         path variant_reference
         val genes
         val variants
+        val n_threshold
+        val cohorts
 
     output:
-        path "z_scores.out.csv"
+        path "z_scores.out.z_score.csv", emit: z_scores
+        path "z_scores.out.sample_size.csv", emit: sample_size
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
+        cohort_arg = (cohorts.size() == 1) ? "--cohort ${cohorts[0]}" : ""
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
@@ -30,8 +33,28 @@ process CalculateZScores {
             --variants-file !{variants.join(' ')} \
             --variant-reference !{variant_reference} \
             --output-prefix z_scores \
-            --cols '+z_score'
+            --n-threshold !{n_threshold} \
+            --as-matrix \
+            --cols 'sample_size,+z_score' !{cohort_arg}
 
         rm -r tmp_eqtls
+        '''
+}
+
+process ConcatMatrix {
+    publishDir "${params.output}/exported_matrix", mode: 'copy', overwrite: true
+
+    input:
+        path matrix, stageAs: "z_scores.out.*.csv"
+        val name
+
+    output:
+        path "${name}"
+
+    shell:
+        '''
+        concat_matrix.py \
+            --input !{matrix.join(' ')} \
+            --output !{name}
         '''
 }

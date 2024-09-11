@@ -59,6 +59,7 @@ if (params.help){
 
 //Default parameters
 Channel.fromPath(params.input).collect().set { input_parquet_ch }
+Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.genes).splitCsv(header: true).map { row -> "${row.ID}" } .set { genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
@@ -69,7 +70,6 @@ cohorts_ch = Channel.fromPath(params.mastertable)
     .map{row -> [ row.cohort_new_name ]}
     .collect()
 
-inclusion_dir_ch = file(params.inclusion_step_output)
 bed_file_ch = file(params.bed)
 variants_ch = file(params.variants)
 gene_variant_pairs_ch = file(params.gene_variant_pairs)
@@ -111,81 +111,26 @@ log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
 
 // Procedure:
-// Generate breakpoints to get equal numbers of variants per bin
-// Get uncorrelated variants per maf bin
-// Using the uncorrelated variants, do accurate permutation p-value calculation
+// Gene-gene correlations
 
 workflow {
-    // Buffer genes
-    genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
-    if ( extract_gene_variant_pairs ) {
-        SplitGeneVariantPairs(gene_variant_pairs_ch,gene_chunk_size)
-        
-        // Extract variants
-        variants_extracted_ch = ExtractGeneVariantPairs(input_parquet_ch, variant_reference_ch, SplitGeneVariantPairs.out.flatten().view(), params.cols)
-            .flatten()
-            .map { file ->
-                   def key = file.simpleName
-                   return tuple(key, file) }
-            groupTuple()
+    // Calculate gene-gene matrix correlations
+    global_components = GlobalPrincipalExpressionPca(permuted_unbiased_snps_ch, n_threshold, 1000)
 
-        // Annotate loci
-        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
+    // We need to calculate component effects on variants in a chunked manner.
+    // Here, define chunks. We run a single job for each chunk
+    variants_buffered_ch = variants.collate(variant_chunk_size)
 
-    }
+    // We need to correct eQTL effects per
+    // Here, define chunks. We run a single job for each chunk
+    genes_buffered_ch = genes.collate(gene_chunk_size)
 
-    if ( extract_variants ) {
-        // Extract variants
-        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
-            .flatten()
-            .map { file ->
-                   def key = variants_ch.baseName
-                   return tuple(key, file) }
-            groupTuple()
+    // Estimate component effects on variants
+    betas_ch = EstimateComponentEffectsOnVariants(input_parquet_ch, global_components, gene_reference_ch, variant_reference_ch, variants_buffered_ch, uncorrelated_genes)
 
-        // Annotate loci
-        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
-
-    }
-
-    if ( extract_loci ) {
-        // Chunk loci
-        bed_file_ch.splitText( by: locus_chunk_size )
-
-        // Extract loci
-        loci_extracted_ch = ExtractLociAll(input_parquet_ch, loci_ch, variant_reference_ch, genes_buffered_ch, params.cols)
-            .flatten()
-            .map { file ->
-                   def key = file.name.toString().tokenize('.').get(1)
-                   return tuple(key, file) }
-            groupTuple()
-
-        // Annotate loci
-        loci_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
-
-    }
-
-    if ( extract_loci == false & extract_variants == false & extract_gene_variant_pairs == false) {
-        // Extract all
-        all_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols, params.p_threshold)
-            .flatten()
-            .map { file ->
-                   def key = file.name.toString().tokenize('.').get(1)
-                   return tuple(key, file) }
-            .groupTuple().view()
-
-        // Annotate loci
-        if (annotate) {
-            variants_annotated_ch = AnnotateLoci(all_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
-        } else {
-            all_extracted_ch
-                .map{ row -> row[1] }
-                .collectFile(name: 'extracted_merged.txt', skip: 1, keepHeader: true, storeDir: params.output)
-        }
-
-    }
-
+    // Estimate effects corrected for k components
+    corrected_eqtls_ch = CorrectQtlEffects(input_parquet_ch, global_components, betas_ch, genes_buffered_ch, pruned_variants)
 }
 
 workflow.onComplete {

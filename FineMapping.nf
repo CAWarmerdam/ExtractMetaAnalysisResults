@@ -167,9 +167,12 @@ workflow FINEMAPPING {
         variant_reference_ch
         uncorrelated_genes_ch
         loci_bed_ch
+        loci_per_job
 
     main:
-        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_ch).flatten()
+        loci_bed_collated_ch = loci_bed_ch.collate(loci_per_job)
+
+        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch).flatten()
 
         // Combine finemapped channel into a single file
         finemapped_ch = finemapped_split_ch.collectFile(name: 'finemapped.tsv', skip: 1, keepHeader: true).collect()
@@ -199,7 +202,7 @@ workflow {
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        GENE_CORRELATIONS.out.uncorrelated_genes,LOCI.out.loci)
+        GENE_CORRELATIONS.out.uncorrelated_genes,LOCI.out.loci, 100)
 }
 
 workflow.onComplete {

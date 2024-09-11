@@ -2,12 +2,13 @@
 
 
 process UncorrelatedGenes {
-    cache 'lenient'
     publishDir "${params.output}/gene_correlations", mode: 'copy', overwrite: true
 
     input:
-        path matrix
-        val threshold
+        path matrix_z
+        path matrix_n
+        val n_threshold
+        val r_threshold
 
     output:
         path "uncorrelated_genes.txt", emit: genes
@@ -16,7 +17,7 @@ process UncorrelatedGenes {
     script:
         """
         export PYTHONUNBUFFERED="1"
-        uncorrelated_genes.py --zscores-file ${matrix} --output-file "uncorrelated_genes.txt" -t ${threshold}
+        uncorrelated_genes.py --input-prefix 'mat' --output-file "uncorrelated_genes.txt" -n ${n_threshold} -t ${r_threshold}
         """
 }
 
