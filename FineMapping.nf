@@ -77,7 +77,8 @@ variant_flank_size=250000
 gene_flank_size=1000000
 
 gene_chunk_size=200
-locus_chunk_size=100
+
+loci_per_job=100
 
 enable_ld_calculation = true
 enable_extract_loci = true
@@ -186,13 +187,6 @@ workflow {
     // Buffer genes
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
-    // By default, always calculate gene correlations, and always run getting loci
-    // GENE_CORRELATIONS(reference_bcf_files_ch,permuted_parquet_ch,variant_reference_ch,genes_buffered_ch,available_genes_ch)
-    GENE_CORRELATIONS(reference_bcf_files_ch,permuted_parquet_ch,variant_reference_ch,genes_buffered_ch)
-
-    uncorrelated_genes_buffered_ch = GENE_CORRELATIONS.out.uncorrelated_genes
-        .splitCsv(header: ['gene']).map { row -> "${row.gene}" }.collate(gene_chunk_size)
-
     // Define loci to do finemapping for
     LOCI(
         empirical_parquet_ch,genes_buffered_ch,
@@ -202,7 +196,7 @@ workflow {
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        GENE_CORRELATIONS.out.uncorrelated_genes,LOCI.out.loci, 100)
+        GENE_CORRELATIONS.out.uncorrelated_genes,LOCI.out.loci, loci_per_job)
 }
 
 workflow.onComplete {
