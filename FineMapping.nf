@@ -184,7 +184,7 @@ workflow {
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        uncorrelated_genes_ch, LOCI.out.loci, loci_per_job)
+        uncorrelated_genes_ch.collect(), LOCI.out.loci, loci_per_job)
 }
 
 workflow.onComplete {
