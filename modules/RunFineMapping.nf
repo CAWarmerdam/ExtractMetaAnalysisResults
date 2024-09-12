@@ -22,7 +22,7 @@ process UncorrelatedGenes {
 }
 
 process RunFineMappingOnCalculatedLd {
-    scratch false
+    scratch false // Needs to be set to true!
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
     input:
@@ -44,39 +44,23 @@ process RunFineMappingOnCalculatedLd {
         cat !{uncorrelatedGenes} | sort | uniq > unique_genes_permuted.txt
 
         # Get set of genes to use in empirical analysis
-        awk -F'\t' 'BEGIN {OFS = FS} {print $4}' !{bedFile} | sort | uniq > unique_genes_empirical.txt
+        cat !{bedFile.join(" ")} > "all_loci.bed"
+        awk -F'\t' 'BEGIN {OFS = FS} {print $4}' "all_loci.bed" | sort | uniq > unique_genes_empirical.txt
 
         while read gene; do
-          cp -r "!{empirical}/phenotype=${gene}" tmp_empirical/
+          cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
         while read gene; do
-          cp -r "!{permuted}/phenotype=${gene}" tmp_permuted/
+          cp -rL "!{permuted}/phenotype=${gene}" tmp_permuted/
         done <unique_genes_permuted.txt
 
-        bedtools merge -i !{bedFile} -d 1500000 > ld_window.bed
-
-        ld_calculator.py \
-        --input-file "tmp_permuted" \
-        --variant-reference !{variantReference} \
-        --genes-file !{uncorrelatedGenes} \
-        --bed-file ld_window.bed \
-        --output-prefix "ld"
-        #TODO: cut-off of 0.05 for p-value to filter variants
-
-        cat !{bedFile} | tr '\t'  ',' | while IFS=',' read -r chrom start end gene cluster; do
-            echo "${chrom}\t${start}\t${end}\t${gene}\n" > "current_locus_as_bed_file.bed";
-            echo "Extracting associations for ${chrom}:${start}-${end} and gene ${gene}";
-
-            run_susie.R \
-            tmp_empirical/phenotype=${gene} \
-            ld.*.csv.gz \
-            !{variantReference} \
-            ${chrom} \
-            ${start} \
-            ${end} \
-            finemapped.${chrom}_${start}_${end}_${gene}.tsv
-        done
+        run_susie_over_loci.R \
+          --permuted tmp_permuted \
+          --empirical tmp_empirical \
+          --variant-reference !{variantReference} \
+          --uncorrelated-genes unique_genes_permuted.txt \
+          --bed-files !{bedFile.join(" ")}
         '''
 }
 
