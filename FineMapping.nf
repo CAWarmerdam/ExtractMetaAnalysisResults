@@ -43,8 +43,6 @@ Mandatory arguments:
 
 }
 
-params.maf_table = 'NO_FILE'
-params.background_bed = 'NO_FILE'
 params.inclusion_step_output = 'NO_FILE'
 
 if (params.help){
