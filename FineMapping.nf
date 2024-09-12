@@ -55,9 +55,8 @@ if (params.help){
 //Default parameters
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
-Channel.fromPath(params.reference_data).set { reference_bcf_files_ch }
 Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
-//Channel.fromPath(params.available_genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { available_genes_ch }
+Channel.fromPath(params.uncorrelated_genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { uncorrelated_genes_ch }
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
@@ -69,20 +68,9 @@ cohorts_ch = Channel.fromPath(params.mastertable)
     .collect()
 
 inclusion_step_output_ch = file(params.inclusion_step_output)
-bed_file_ch = file(params.background_bed)
-
-Channel.fromPath(params.maf_table).collect().set { maf_table_ch }
-
-variant_flank_size=250000
-gene_flank_size=1000000
 
 gene_chunk_size=200
-
 loci_per_job=100
-
-enable_ld_calculation = true
-enable_extract_loci = true
-enable_cis_trans_coloc = false
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
@@ -196,7 +184,7 @@ workflow {
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        GENE_CORRELATIONS.out.uncorrelated_genes,LOCI.out.loci, loci_per_job)
+        uncorrelated_genes_ch, LOCI.out.loci, loci_per_job)
 }
 
 workflow.onComplete {
