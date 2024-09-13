@@ -162,7 +162,7 @@ main <- function(argv=NULL) {
   sumstats_path <- args$empirical
   variant_reference_path <- args$variant_reference
 
-  variant_reference <- arrow::read_parquet(variant_reference)
+  variant_reference <- arrow::read_parquet(variant_reference_path)
 
   # load in parquet with Robert's strategy
   empirical_dataset <- open_dataset(sumstats_path)
