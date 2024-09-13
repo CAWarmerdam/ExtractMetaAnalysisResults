@@ -12,7 +12,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from scipy import stats
 
-SCHEMA = pa.schema([("variant", pa.string()), ("beta", pa.float64()),
+SCHEMA = pa.schema([("variant_index", pa.int64()), ("beta", pa.float64()),
                     ("standard_error", pa.float64()), ("i_squared", pa.float64()),
                     ("sample_size", pa.float64())])
 
@@ -49,7 +49,7 @@ class QtlSetFilter(QtlFilter):
 
 
 class QtlVariantFilter(QtlSetFilter):
-    _field_name = "variant"
+    _field_name = "variant_index"
     def __init__(self, variants):
         super().__init__(variants)
 
@@ -66,7 +66,7 @@ class QtlCohortFilter(QtlSetFilter):
         super().__init__(cohorts)
 
 
-class QtlChromosomeFilter(QtlFilter):
+class QtlChromosomeFilter(QtlSetFilter):
     _field_name = "chromosome"
     _operator = "=="
     def __init__(self, chromosome):
@@ -76,18 +76,17 @@ class QtlChromosomeFilter(QtlFilter):
 
 
 class QtlLocusVariantFilter:
-    def __init__(self, chromosome, variants):
-        self._chromosome_filter = QtlChromosomeFilter(chromosome)
+    def __init__(self, variants):
         self._variant_filter = QtlVariantFilter(variants)
     def get_filters(self):
         # Return a list, with in each list a chromosome filter, and a
-        return [self._chromosome_filter.get_filter(), self._variant_filter.get_filter()]
+        return [self._variant_filter.get_filter()]
     @classmethod
     def from_locus(cls, chromosome, start, stop, variant_reference):
         chromosome_reference = variant_reference.loc[variant_reference["chromosome"] == chromosome, :]
         variants = chromosome_reference.loc[
-            ((chromosome_reference["bp"] >= start) & (chromosome_reference["bp"] <= stop)), "variant"]
-        return cls(chromosome, variants)
+            ((chromosome_reference["bp"] >= start) & (chromosome_reference["bp"] <= stop)), "variant_index"]
+        return cls(variants)
 
 
 class QtlPThresholdFilter(QtlFilter):
@@ -144,6 +143,7 @@ class QtlResultProcessor:
         if cols is None:
             cols = set()
         filters = self.get_filters()
+        print(filters)
         dataset = pq.ParquetDataset(
             self.path, validate_schema=True,
             filters=filters)
@@ -163,7 +163,7 @@ class QtlResultProcessor:
             self._p_value = self._p_value[self.significance_filter.apply(self.p_value())]
             print("Filtered to {} rows".format(self._df.shape[0]))
         if cols is not None and len(cols) > 0:
-            default_cols = ["variant", "phenotype"]
+            default_cols = ["variant_index", "phenotype"]
             default_cols.extend(cols.union(add))
             out = self._df.loc[:, default_cols]
         elif drop is not None and len(drop) > 0:
@@ -198,7 +198,8 @@ class QtlResultProcessor:
             base_filter_list += [self.cohort_filter.get_filter()]
         print(base_filter_list)
         if self.variant_filters is not None:
-            filter_list = [base_filter_list + var_filter.get_filters() for var_filter in self.variant_filters]
+            print(self.variant_filters)
+            filter_list = [base_filter_list + [filter.get_filter()] for filter in self.variant_filters]
         else:
             filter_list = [base_filter_list]
         return filter_list
@@ -222,7 +223,7 @@ def column_specification(cols):
     return column_specifications
 
 
-def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, cohort_filter, column_specifications, p_thresh=None, as_matrix=False):
+def export_write(input_file, output_prefix, qtl_gene_filter, variant_filter, cohort_filter, column_specifications, p_thresh=None, as_matrix=False):
     file_conns = dict()
     columns_to_write = column_specifications[""].union(column_specifications["+"])
     try:
@@ -231,8 +232,9 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
                 file_conns[col] = open("{}.out.{}.csv".format(output_prefix, col), 'w')
             result_processor = QtlResultProcessor(
                 input_file, qtl_gene_filter)
-            result_processor.variant_filters = variant_filters
-            result_processor.cohort_filter = cohort_filter 
+            print(variant_filter)
+            result_processor.variant_filters = [variant_filter] if variant_filter is not None else None
+            result_processor.cohort_filter = cohort_filter
             if p_thresh is not None:
                 result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
             df = result_processor.extract(
@@ -240,7 +242,7 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
                 drop=column_specifications["-"],
                 add=column_specifications["+"])
             for col in columns_to_write:
-                pd.pivot(df, columns="phenotype", index="variant", values=col).to_csv(file_conns[col], sep="\t", header=True, index=True, na_rep="NA")
+                pd.pivot(df, columns="phenotype", index="variant_index", values=col).to_csv(file_conns[col], sep="\t", header=True, index=True, na_rep="NA")
         else:
             first = True
             file_conns["long"] = open("{}.out.csv".format(output_prefix), 'w')
@@ -249,7 +251,7 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filters, co
                 qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
                 result_processor = QtlResultProcessor(
                     input_file, qtl_single_gene_filter)
-                result_processor.variant_filters = variant_filters
+                result_processor.variant_filters = [variant_filter] if variant_filter is not None else None
                 result_processor.cohort_filter = cohort_filter 
                 if p_thresh is not None:
                     result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
@@ -276,7 +278,7 @@ def export_write_qtl_pairs(input_file, output_file, qtl_gene_variant_df, cohort_
             qtl_single_gene_filter = QtlGeneFilter.from_list([gene])
             result_processor = QtlResultProcessor(
                 input_file, qtl_single_gene_filter)
-            variant_filters = [QtlLocusVariantFilter(chromosome, variant_chunk['variant']) for chromosome, variant_chunk in chunk.groupby('chromosome')]
+            variant_filters = [QtlVariantFilter(chunk['variant_index'])]
             result_processor.variant_filters = variant_filters
             result_processor.cohort_filter = cohort_filter
             if p_thresh is not None:
@@ -334,7 +336,7 @@ def main(argv=None):
 
     variant_reference = None
     variants_list = None
-    variant_filters = None
+    variant_filter = None
     cohort_filter = None
     loci = None
 
@@ -344,11 +346,8 @@ def main(argv=None):
     if args.n_threshold is not None:
         n_threshold_filter = QtlNThresholdFilter(args.n_threshold)
 
-    if args.variant_reference is not None and (args.variants is not None or args.variants_file is not None or args.bed_file is not None):
-        variant_reference = (
-            pd.read_csv(args.variant_reference, sep = ' ')
-            .drop(["allele1", "allele2"], axis=1)
-            .rename({"ID": "variant", "bp": "bp", "CHR": "chromosome", "str_allele1": "a1", "str_allele2": "a2"}, axis=1))
+    if args.variant_reference is not None and (args.variants is not None or args.variants_file is not None or args.bed_file is not None or args.gene_variant_pair_file is not None):
+        variant_reference = pd.read_parquet(args.variant_reference)
         print(variant_reference.head())
 
     if args.gene_variant_pair_file is not None:
@@ -385,14 +384,14 @@ def main(argv=None):
     if variants_list is not None:
         if variant_reference is None:
             parser.error("Cannot subset on variants without variant reference")
-        variant_selection = variant_reference.loc[variant_reference.loc[:, "variant"].isin(variants_list), :]
-        variant_dictionary = variant_selection.groupby('chromosome')['variant'].apply(list).to_dict()
-        variant_filters = [QtlLocusVariantFilter(chromosome, variants) for chromosome, variants in variant_dictionary.items()]
+        variant_selection = variant_reference.loc[variant_reference.loc[:, "variant"].isin(variants_list), "variant_index"]
+        variant_filter = QtlVariantFilter(variant_selection)
+        print("Will filter on %d variants" % len(variant_selection))
 
     qtl_gene_filter = None
 
     if args.genes_file is not None:
-        print("Using variants file '%s' to filter on variants." % args.genes_file)
+        print("Using genes file '%s' to filter on variants." % args.genes_file)
         qtl_gene_filter = QtlGeneFilter.from_path(args.genes_file)
     if args.genes is not None:
         print("Provided %d genes for filtering." % len(args.genes))
@@ -403,7 +402,7 @@ def main(argv=None):
     if loci is None:
         print("Starting export")
         export_write(args.input_file, args.output_prefix,
-                     qtl_gene_filter, variant_filters, cohort_filter,
+                     qtl_gene_filter, variant_filter, cohort_filter,
                      args.column_specifications, args.p_thresh, args.as_matrix)
 
     else:

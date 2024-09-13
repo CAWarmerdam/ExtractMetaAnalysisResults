@@ -103,7 +103,7 @@ process AnnotateLoci {
     publishDir "${params.output}/loci_empirical_annotated", mode: 'copy', overwrite: true
 
     input:
-        tuple val(locus_string), path(files, stageAs: "locus_*.csv")
+        path "locus_*.csv"
         path variantReference
         path geneReference
         path mafTable
@@ -111,21 +111,18 @@ process AnnotateLoci {
         val cohorts
 
     output:
-        tuple val(locus_string), path("annotated.${locus_string}.csv.gz")
+        tuple val(locus_string), path("annotated.csv.gz")
 
     script:
         """
-        head --quiet -n 1 ${files[0]} > concatenated.${locus_string}.csv
-        tail --quiet -n +2 ${files.join(' ')} >> concatenated.${locus_string}.csv
-
         annotate_loci.py \
-            --input-file ${files.join(' ')} \
+            --input-file locus_*.csv \
             --cohorts ${cohorts.join(' ')} \
             --variant-reference ${variantReference} \
             --gene-gff ${geneReference} \
             --maf-table ${mafTable} \
             --inclusion-path ${inclusionDir} \
-            --out-prefix annotated.${locus_string}
+            --out-prefix annotated
         """
 }
 

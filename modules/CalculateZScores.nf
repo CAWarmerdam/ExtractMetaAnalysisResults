@@ -14,11 +14,12 @@ process CalculateZScoreMatrix {
 
     output:
         path "z_scores.out.z_score.csv", emit: z_scores
-        path "z_scores.out.sample_size.csv", emit: sample_size
+        path "z_scores.out.sample_size.csv", emit: sample_size, optional: true
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
         cohort_arg = (cohorts.size() == 1) ? "--cohort ${cohorts[0]}" : ""
+        cols = (cohorts.size() == 1) ? "+z_score" : 'sample_size,+z_score'
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
@@ -35,7 +36,7 @@ process CalculateZScoreMatrix {
             --output-prefix z_scores \
             --n-threshold !{n_threshold} \
             --as-matrix \
-            --cols 'sample_size,+z_score' !{cohort_arg}
+            --cols !{cols} !{cohort_arg}
 
         rm -r tmp_eqtls
         '''
