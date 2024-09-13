@@ -266,11 +266,7 @@ def main(argv=None):
     print(args)
     print("Loading variant reference from '{}'".format(args.variant_reference))
 
-    variant_reference = (
-        pd.read_csv(args.variant_reference, sep=' ', dtype={'CHR': "Int64", 'bp': "Int64"})
-        .drop(["allele1", "allele2"], axis=1)
-        .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
-                 "str_allele1": "allele_ref", "str_allele2": "allele_eff"}, axis=1))
+    variant_reference = pd.read_parquet(args.variant_reference)
 
     print("Variant reference loaded:")
     print(variant_reference.head())
@@ -357,8 +353,8 @@ def main(argv=None):
 
     print("Loading gene annotations from '{}'".format(args.gene_ref))
 
-    gencode_parser = GencodeParser(args.gene_ref)
-    gene_dataframe = gencode_parser.df
+    gtf_parser = GtfParser(args.gene_ref)
+    gene_dataframe = gtf_parser.df
 
     gene_dataframe = gene_dataframe.loc[gene_dataframe.gene_id.isin(eqtls_genes_filtered.phenotype)].copy()
 
