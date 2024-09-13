@@ -172,6 +172,7 @@ main <- function(argv=NULL) {
 
   # get path of parquet from arguments
   sumstats_path <- args$empirical
+  permuted_dataset_path <- args$permuted
   variant_reference_path <- args$variant_reference
 
   variant_reference <- arrow::read_parquet(variant_reference_path)
