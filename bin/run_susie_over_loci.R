@@ -94,11 +94,14 @@ get_ld_matrix <- function(permuted_dataset, variant_index_end, variant_index_sta
   return(ld_matrix)
 }
 
-finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed_file, variant_reference) {
+finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, variant_reference) {
+  locus_chromosome <- unique(locus_bed %>% pull(chromosome))
+  locus_start <- min(locus_bed %>% pull(start))
+  locus_end <- max(locus_bed %>% pull(end))
 
   # Get the variants to load
   locus_variant_reference <- variant_reference %>%
-    filter(chromosome == position_chromosome, between(bp, position_start, position_end)) %>% collect()
+    filter(chromosome == locus_chromosome, between(bp, locus_start, locus_end)) %>% collect()
 
   # Get the indices of the variants to laod
   variant_index_start <- min(locus_variant_reference$variant_index)
@@ -114,12 +117,21 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed_file, v
   print(time.taken)
 
   # Do the remaining bit for finemapping the locus
-  locus_as_dt <- fread(locus_bed_file)
-  by(locus_as_dt, seq_len(nrow(locus_as_dt)), function(locus_gene_combination) {
-    gene_id <- locus_gene_combination$name
+  by(locus_bed, seq_len(nrow(locus_bed)), function(locus_gene_combination) {
+    gene_id <- locus_gene_combination$gene
+    locus_gene_start <- locus_gene_combination$start
+    locus_gene_end <- locus_gene_combination$end
+
+    # Get the variants to load
+    locus_variant_reference <- variant_reference %>%
+      filter(chromosome == locus_chromosome, between(bp, locus_gene_start, locus_gene_end)) %>% collect()
+
+    # Get the indices of the variants to laod
+    gene_variant_index_start <- min(locus_variant_reference$variant_index)
+    gene_variant_index_end <- max(locus_variant_reference$variant_index)
 
     gene_summary_stats <- empirical_dataset %>%
-      filter(phenotype == gene_id, between(variant_index, variant_index_start, variant_index_end)) %>%
+      filter(phenotype == gene_id, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
       as.data.table()
 
     # Yet to order the gene_summary_stats so that the variant ordering matches that of the ld_matrix
@@ -169,10 +181,11 @@ main <- function(argv=NULL) {
   permuted_dataset <- arrow::open_dataset(permuted_dataset_path)
 
   fine_mapping_results_per_locus <- mapply(function(bed_file) {
+    locus_bed <- fread(bed_file, col.names = c("chromosome", "start", "end", "gene", "cluster"))
     # Assumes fine_mapping_output is some sort of data.frame/data.table or tibble
     fine_mapping_output <- finemap_locus(empirical_dataset=empirical_dataset,
                                          permuted_dataset=permuted_dataset,
-                                         locus_bed_file=bed_file,
+                                         locus_bed=locus_bed,
                                          variant_reference=variant_reference)
     return(fine_mapping_output)
   }, args$bed_files, SIMPLIFY = F)
