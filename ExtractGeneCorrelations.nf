@@ -46,6 +46,9 @@ if (params.help){
     exit 0
 }
 
+params.mode == "correlations"
+params.cohort == ""
+
 //Default parameters
 cohorts_ch = Channel.fromPath(params.mastertable)
     .ifEmpty { error "Cannot find master table from: ${params.mastertable}" }
@@ -57,6 +60,7 @@ n_threshold = Channel.fromPath(new File(params.inclusion_dir, "filter_logs.log")
     .map { row -> [row.Dataset, row.N] }
     .join(cohorts_ch).view().map { row -> row[1] }.toInteger().sum().view()
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
+Channel.from(params.cohort).collect().set { cohort_ch }
 Channel.fromPath(params.genes).splitCsv(header: true).map { row -> "${row.ID}" } .set { genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.uncorrelated_variants).collect().set { uncorrelated_variants_ch }
@@ -92,7 +96,11 @@ workflow {
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
     // Retrieve Z scores
-    z_scores_split_ch = CalculateZScoreMatrix(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, n_threshold, cohorts_ch.collect())
+    if (params.cohort != "") {
+      z_scores_split_ch = CalculateZScoreMatrix(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, n_threshold, cohort_ch)
+    } else {
+      z_scores_split_ch = CalculateZScoreMatrix(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, n_threshold, cohorts_ch.collect())
+    }
 
     // Combine Z-scores channel into a single file
     zscore_ch = ConcatZScoresMatrix(z_scores_split_ch.z_scores.collect(), Channel.value('mat.z.txt'))
@@ -101,7 +109,9 @@ workflow {
     zscore_ch.view()
 
     // Calculate gene gene matrix correlations
+    if (params.mode == "correlations") {
     uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, sample_size_ch, n_threshold, 0.2)
+    }
 }
 
 workflow.onComplete {

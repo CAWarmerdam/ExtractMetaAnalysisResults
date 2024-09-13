@@ -120,7 +120,8 @@ workflow {
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
     if ( extract_gene_variant_pairs ) {
-        SplitGeneVariantPairs(gene_variant_pairs_ch,gene_chunk_size)
+        gene_file = genes_ch.collectFile(name: "filteredgenes.txt", newLine: true)
+        SplitGeneVariantPairs(gene_variant_pairs_ch,gene_file,gene_chunk_size)
         
         // Extract variants
         variants_extracted_ch = ExtractGeneVariantPairs(input_parquet_ch, variant_reference_ch, SplitGeneVariantPairs.out.flatten().view(), params.cols)
@@ -137,15 +138,21 @@ workflow {
 
     if ( extract_variants ) {
         // Extract variants
-        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols)
+        variants_extracted_ch = ExtractVariants(input_parquet_ch, variant_reference_ch, genes_buffered_ch, variants_ch, params.cols, params.p_threshold)
             .flatten()
             .map { file ->
                    def key = variants_ch.baseName
                    return tuple(key, file) }
             groupTuple()
 
+        extracted_collected_ch = variants_extracted_ch
+            .map{ row -> row[1] }
+            .collectFile(name: 'extracted_merged.txt', skip: 1, keepHeader: true, storeDir: params.output)
+
         // Annotate loci
-        variants_annotated_ch = AnnotateLoci(variants_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
+        if (annotate) {
+            variants_annotated_ch = AnnotateLoci(variants_extracted_ch.map{ row -> row[1] }.collect(), variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
+        }
 
     }
 
@@ -163,7 +170,6 @@ workflow {
 
         // Annotate loci
         loci_annotated_ch = AnnotateLoci(loci_extracted_ch, variant_reference_ch, gene_reference_ch, maf_table_ch, inclusion_dir_ch, cohorts_ch)
-
     }
 
     if ( extract_loci == false & extract_variants == false & extract_gene_variant_pairs == false) {

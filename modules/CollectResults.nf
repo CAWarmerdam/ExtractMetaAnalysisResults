@@ -6,6 +6,7 @@ process SplitGeneVariantPairs {
 
     input:
         path gene_variant_file
+        path genes
         val n_genes_per_chunk
 
     output:
@@ -13,7 +14,10 @@ process SplitGeneVariantPairs {
 
     shell:
         '''
-        split_variant_gene_pairs.py -P !{gene_variant_file} -k !{n_genes_per_chunk}
+        gunzip !{gene_variant_file} -c > gene_variant_file.txt
+        head -n 1 gene_variant_file.txt > gene_variant_file_pruned.txt
+        grep -Ff !{genes} gene_variant_file.txt >> gene_variant_file_pruned.txt
+        split_variant_gene_pairs.py -P gene_variant_file_pruned.txt -k !{n_genes_per_chunk}
         '''
 }
 

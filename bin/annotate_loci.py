@@ -165,11 +165,7 @@ def main(argv=None):
     print(args)
     print("Loading variant reference from '{}'".format(args.variant_reference))
 
-    variant_reference = (
-        pd.read_csv(args.variant_reference, sep=' ', dtype={'CHR': "Int64", 'bp': "Int64"})
-        .drop(["allele1", "allele2"], axis=1)
-        .rename({"ID": "variant", "bp": "bp_variant", "CHR": "chromosome_variant",
-                 "str_allele1": "allele_ref", "str_allele2": "allele_eff"}, axis=1))
+    variant_reference = pd.read_parquet(args.variant_reference)
 
     print("Variant reference loaded:")
     print(variant_reference.head())
@@ -185,10 +181,10 @@ def main(argv=None):
     maf_dataframe = pd.merge(maf_dataframe, variant_reference,
                              left_index=True, right_on="variant", validate="1:1").set_index("variant")
 
-    maf_dataframe["flipped"] = maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]
-    print((maf_dataframe["allele_ref"] == maf_dataframe["allele_maf"]).sum())
-    print((maf_dataframe["allele_eff"] == maf_dataframe["allele_maf"]).sum())
-    assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["allele_eff"] == maf_dataframe["allele_maf"]))
+    maf_dataframe["flipped"] = maf_dataframe["non_eff_allele"] == maf_dataframe["allele_maf"]
+    print((maf_dataframe["non_eff_allele"] == maf_dataframe["allele_maf"]).sum())
+    print((maf_dataframe["eff_allele"] == maf_dataframe["allele_maf"]).sum())
+    assert np.alltrue(maf_dataframe["flipped"] == ~(maf_dataframe["eff_allele"] == maf_dataframe["allele_maf"]))
 
     print("Minor allele frequencies loaded:")
     print(maf_dataframe.head())
@@ -212,7 +208,7 @@ def main(argv=None):
         eqtls = pd.read_csv(input_file, sep='\t')
 
         eqtls_annotated = (
-            eqtls.merge(variant_reference, how="left", on="variant"))
+            eqtls.merge(variant_reference, how="left", on="variant_index"))
 
         maf = maf_calculator.calculate_maf(eqtls_annotated[['variant', 'phenotype']])
         eqtls_annotated['allele_eff_freq'] = maf.values
