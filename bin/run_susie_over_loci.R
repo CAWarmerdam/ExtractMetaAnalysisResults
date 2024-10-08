@@ -68,16 +68,19 @@ parser$add_argument(
 # Declare function definitions
 
 # Extract locus as data table
-get_ld_matrix <- function(permuted_dataset, variant_index_end, variant_index_start) {
+get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_end) {
   z_score_dt <- permuted_dataset %>%
     filter(between(variant_index, variant_index_start, variant_index_end)) %>%
     mutate(z_score = beta / standard_error) %>%
     as.data.table()
 
+  print(as_tibble(z_score_dt))
+
   # Get z-score matrix from data table
   z_score_mat <- z_score_dt %>%
     pivot_wider(id_cols = "variant_index", names_from = "phenotype", values_from = "z_score") %>%
     collect() %>% as.data.table() %>% as.matrix(rownames=1)
+
 
   start.time <- Sys.time()
 
@@ -110,6 +113,8 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
   message("Starting to calculate LD...")
   start.time <- Sys.time()
   ld_matrix <- get_ld_matrix(permuted_dataset, variant_index_start, variant_index_end)
+  print(as_tibble(ld_matrix))
+  print(ld_matrix[1:10, 1:10])
   variant_order <- rownames(ld_matrix)
   end.time <- Sys.time()
   time.taken <- end.time - start.time
@@ -118,21 +123,19 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
 
   # Do the remaining bit for finemapping the locus
   fine_mapping_results <- mapply(function(gene, start, end) {
-    gene_id <- locus_gene_combination$gene
-    locus_gene_start <- locus_gene_combination$start
-    locus_gene_end <- locus_gene_combination$end
 
     # Get the variants to load
     gene_locus_variant_reference <- variant_reference %>%
-      filter(chromosome == locus_chromosome, between(bp, locus_gene_start, locus_gene_end)) %>% collect()
+      filter(chromosome == locus_chromosome, between(bp, start, end)) %>% collect()
 
     # Get the indices of the variants to laod
     gene_variant_index_start <- min(gene_locus_variant_reference$variant_index)
     gene_variant_index_end <- max(gene_locus_variant_reference$variant_index)
 
     gene_summary_stats <- empirical_dataset %>%
-      filter(phenotype == gene_id, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
+      filter(phenotype == gene, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
       as.data.table()
+    print(as_tibble(gene_summary_stats))
 
     # Yet to order the gene_summary_stats so that the variant ordering matches that of the ld_matrix
     # Do fine-mapping
