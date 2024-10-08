@@ -9,7 +9,6 @@ nextflow.enable.dsl = 2
 include { ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
 include { RunFineMappingOnCalculatedLd; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
-include { CalculateZScores } from './modules/CalculateZScores'
 
 def helpmessage() {
 
@@ -54,7 +53,7 @@ if (params.help){
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
-Channel.fromPath(params.uncorrelated_genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { uncorrelated_genes_ch }
+Channel.fromPath(params.uncorrelated_genes).collect().set { uncorrelated_genes_ch }
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
@@ -93,34 +92,6 @@ summary['Gene list']                                = params.genes
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
-
-workflow GENE_CORRELATIONS {
-    take:
-        reference_bcf_files_ch
-        permuted_parquet_ch
-        variant_reference_ch
-        genes_buffered_ch
-        // available_genes_ch
-
-    main:
-        // Obtain a list of uncorrelated variants
-        uncorrelated_variants_ch = GetUncorrelatedVariants(reference_bcf_files_ch)
-            .collectFile(name: 'merged.prune.in', newLine: true, cache: 'lenient').collect()
-
-        // Calculate the Z-scores for each gene list in the genes channel
-        // z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch, available_genes_ch)
-        z_scores_split_ch = CalculateZScores(permuted_parquet_ch, variant_reference_ch, genes_buffered_ch, uncorrelated_variants_ch)
-
-        // Combine Z-scores channel into a single file
-        zscore_ch = z_scores_split_ch.collectFile(name: 'pruned_z_scores.txt', skip: 1, keepHeader: true, cache: 'lenient').collect()
-
-        // Calculate gene gene matrix correlations
-        uncorrelated_genes_out = UncorrelatedGenes(zscore_ch, 0.2)
-
-    emit:
-        gene_correlations = uncorrelated_genes_out.correlations
-        uncorrelated_genes = uncorrelated_genes_out.genes
-}
 
 workflow LOCI {
     take:

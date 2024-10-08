@@ -80,7 +80,7 @@ process DefineFineMappingLoci {
 
         # First, get the relevant columns to make a bed file, and apply a splop to make a total
         # window of 3Mb
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $12,$9,$9,$2}' !{signVariants} \
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $10,$9-1,$9,$2}' !{signVariants} \
         | bedtools slop -b 1500000 -g !{genomeRef} > loci_3Mb_window.bed
 
         # Second, extract the gene ENSG identifiers, and get a set of identifiers, removing duplicates
