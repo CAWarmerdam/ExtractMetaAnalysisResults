@@ -67,6 +67,39 @@ parser$add_argument(
 
 # Declare function definitions
 
+#' Convert Z-Score to Correlation Coefficient
+#'
+#' This function converts a Z-score back to a correlation coefficient `r` based on
+#' the given degrees of freedom `df`. This is useful for comparing Z-scores when sample sizes
+#' are dissimilar
+#'
+#' @param z A numeric vector of Z-scores.
+#' @param df A numeric vector of degrees of freedom corresponding to the Z-scores.
+#' @return A numeric vector of correlation coefficients. If the length of `z` and `df` do not match, the function returns 0.
+#' @details
+#' The function calculates the t-value from the Z-score using the inverse cumulative distribution
+#' function of the normal distribution. It then converts the t-value to the corresponding
+#' correlation coefficient. The sign of the correlation coefficient is adjusted based on the
+#' sign of the original Z-score.
+#'
+#' @examples
+#' # Convert a Z-score of 2.5 with 10 degrees of freedom to a correlation coefficient
+#' zToCor(2.5, 10)
+#'
+#' # Convert multiple Z-scores to correlation coefficients
+#' zToCor(c(1.5, -2.0), c(15, 20))
+#'
+#' @export
+zToCor <- function(z, df){
+  if(length(z) != length(df)){
+    return(0L)  #Error condition
+  }
+  t <- qt(pnorm(-abs(z),log.p = T), df, log.p=T)
+  r <- t/sqrt(df+t^2)
+  r <- ifelse(z > 0, r * -1, r)
+  return(r)
+}
+
 # Extract locus as data table
 get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_end) {
   z_score_dt <- permuted_dataset %>%
@@ -81,14 +114,21 @@ get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_e
     pivot_wider(id_cols = "variant_index", names_from = "phenotype", values_from = "z_score") %>%
     collect() %>% as.data.table() %>% as.matrix(rownames=1)
 
+  # Get z-score matrix from data table
+  n_mat <- z_score_dt %>%
+    pivot_wider(id_cols = "variant_index", names_from = "phenotype", values_from = "sample_size") %>%
+    collect() %>% as.data.table() %>% as.matrix(rownames=1)
+
+  # Convert Z-scores to pearson correlations, using sample size - 1 as the degrees of freedom
+  rho_mat <- zToCor(z_score_mat, n_mat-1)
 
   start.time <- Sys.time()
 
-  z_score_mat <- z_score_mat - rowMeans(z_score_mat)
+  rho_mat <- rho_mat - rowMeans(rho_mat)
   # Standardize each variable
-  z_score_mat <- z_score_mat / sqrt(rowSums(z_score_mat^2))
+  rho_mat <- rho_mat / sqrt(rowSums(rho_mat^2))
   # Calculate correlations
-  ld_matrix <- tcrossprod(z_score_mat)
+  ld_matrix <- tcrossprod(rho_mat)
 
   end.time <- Sys.time()
   time.taken <- end.time - start.time
