@@ -162,7 +162,7 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
   print(time.taken)
 
   # Do the remaining bit for finemapping the locus
-  fine_mapping_results <- mapply(function(gene, start, end) {
+  fine_mapping_results <- bind_rows(mapply(function(gene, start, end) {
 
     # Get the variants to load
     gene_locus_variant_reference <- variant_reference %>%
@@ -180,20 +180,20 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
     # Yet to order the gene_summary_stats so that the variant ordering matches that of the ld_matrix
     gene_summary_stats <- gene_summary_stats[match(variant_order, rownames(gene_summary_stats)), match(variant_order, rownames(gene_summary_stats))]
     # Do fine-mapping
-    estimated_res_var = T
     if(all(rownames(gene_summary_stats) == variant_order)){
       nCS = 10
 
+      estimated_res_var = T
       fitted_rss2 <- tryCatch({
         fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
       }, error = function(e) {
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
         estimated_res_var = F
         return(fitted_rss2)
       })
 
       if(!fitted_rss2$converged){
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
         estimated_res_var = F
       }
 
@@ -230,7 +230,7 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
 
     }
     return gene_summary_stats
-  }, locus_bed$gene, locus_bed$start, locus_bed$end, SIMPLIFY =F)
+  }, locus_bed$gene, locus_bed$start, locus_bed$end, SIMPLIFY =F))
 
   # Return
   return(fine_mapping_results)
