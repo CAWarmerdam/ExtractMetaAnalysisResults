@@ -178,8 +178,58 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
     print(as_tibble(gene_summary_stats))
 
     # Yet to order the gene_summary_stats so that the variant ordering matches that of the ld_matrix
+    gene_summary_stats <- gene_summary_stats[match(variant_order, rownames(gene_summary_stats)), match(variant_order, rownames(gene_summary_stats))]
     # Do fine-mapping
-    return(data.frame(list("gene" = c(), "variant" = c(), "cs" = c(), "pip" = c())))
+    estimated_res_var = T
+    if(all(rownames(gene_summary_stats) == variant_order)){
+      nCS = 10
+
+      fitted_rss2 <- tryCatch({
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
+      }, error = function(e) {
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
+        estimated_res_var = F
+        return(fitted_rss2)
+      })
+
+      if(!fitted_rss2$converged){
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
+        estimated_res_var = F
+      }
+
+      print("Finished!")
+      print(fitted_rss2$converged)
+
+      if(fitted_rss2$converged){
+        print(summary(fitted_rss2))
+        gene_summary_stats["SusieRss_pip"] = fitted_rss2$pip
+        gene_summary_stats["SusieRss_CS"] = NA
+        gene_summary_stats["SusieRss_ResVar"] = estimated_res_var
+        if(length(fitted_rss2$sets[[1]])!=0){
+          for(l in 1:length(fitted_rss2$sets[[1]])){
+            gene_summary_stats$SusieRss_CS[fitted_rss2$sets[[1]][[l]]]=l
+          }
+        }
+        lbfOut = t(fitted_rss2$lbf_variable)
+        if(ncol(lbfOut)<nCS){
+          lbfOut = as.data.frame(lbfOut)
+          for(j in 1:(nCS - ncol(lbfOut))){
+            lbfOut[paste("lbf_cs",j,sep="_")] = NA
+          }
+        }
+        colnames(lbfOut) = paste("lbf_cs",1:nCS,sep="_")
+        gene_summary_stats = cbind(gene_summary_stats,lbfOut)
+      } else {
+        gene_summary_stats["SusieRss_pip"] = NA
+        gene_summary_stats["SusieRss_CS"] = NA
+        gene_summary_stats["SusieRss_ResVar"] = NA
+        for(j in 1:nCS){
+          gene_summary_stats[paste("lbf_cs",j,sep="_")] = NA
+        }
+      }
+
+    }
+    return gene_summary_stats
   }, locus_bed$gene, locus_bed$start, locus_bed$end, SIMPLIFY =F)
 
   # Return
