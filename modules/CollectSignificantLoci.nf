@@ -63,6 +63,22 @@ process AnnotateResults {
         """
 }
 
+process AnnotateSignificantVariants {
+    executor 'local'
+
+    input:
+        path signSubset
+        path variantReference
+
+    output:
+        path "sign_variants.csv"
+
+    shell:
+        '''
+        annotate_significant_variants.R --sign-subset !{signSubset} --variant-reference !{variantReference} --output-file "sign_variants.csv"
+        '''
+}
+
 process DefineFineMappingLoci {
     input:
         path signVariants
@@ -80,11 +96,11 @@ process DefineFineMappingLoci {
 
         # First, get the relevant columns to make a bed file, and apply a splop to make a total
         # window of 3Mb
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $10,$9-1,$9,$2}' !{signVariants} \
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $13,$12-1,$12,$1}' !{signVariants} \
         | bedtools slop -b 1500000 -g !{genomeRef} > loci_3Mb_window.bed
 
         # Second, extract the gene ENSG identifiers, and get a set of identifiers, removing duplicates
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $2}' !{signVariants} | sort | uniq > unique_genes.txt
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $1}' !{signVariants} | sort | uniq > unique_genes.txt
 
         # Loop through the set of ENSG identifiers, merging the loci for each gene
         while read g; do
