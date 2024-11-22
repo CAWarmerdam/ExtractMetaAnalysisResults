@@ -266,7 +266,7 @@ def main(argv=None):
     print(args)
     print("Loading variant reference from '{}'".format(args.variant_reference))
 
-    variant_reference = pd.read_parquet(args.variant_reference)
+    variant_reference = pd.read_parquet(args.variant_reference).rename(columns={'chromosome': 'chromosome_variant', 'bp': 'bp_variant'})
 
     print("Variant reference loaded:")
     print(variant_reference.head())
@@ -382,8 +382,8 @@ def main(argv=None):
 
     # Perform method
     eqtls_annotated = (
-        eqtls_genes_filtered.set_index(["variant", "phenotype"])
-        .merge(variant_reference.set_index("variant"), how="inner", validate="m:1", left_index=True, right_index=True)
+        eqtls_genes_filtered.set_index(["variant_index", "phenotype"])
+        .merge(variant_reference.set_index("variant_index"), how="inner", validate="m:1", left_index=True, right_index=True)
         .merge(gene_dataframe.rename(columns={'gene_id': 'phenotype'},).set_index("phenotype"), how="inner", left_index=True, right_index=True,
                suffixes=('', '_gene'), validate="m:1")).reset_index()
 
