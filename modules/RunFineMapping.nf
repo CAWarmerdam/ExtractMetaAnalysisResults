@@ -47,12 +47,14 @@ process RunFineMappingOnCalculatedLd {
         cat !{bedFile.join(" ")} > "all_loci.bed"
         awk -F'\t' 'BEGIN {OFS = FS} {print $4}' "all_loci.bed" | sort | uniq > unique_genes_empirical.txt
 
+        # Need to add -L to cp command when running on a compute nodes scratch space
         while read gene; do
-          cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
+          cp -r "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
+        # Need to add -L to cp command when running on a compute nodes scratch space
         while read gene; do
-          cp -rL "!{permuted}/phenotype=${gene}" tmp_permuted/
+          cp -r "!{permuted}/phenotype=${gene}" tmp_permuted/
         done <unique_genes_permuted.txt
 
         run_susie_over_loci.R \
@@ -77,7 +79,7 @@ process ExportResults {
       '''
       filter_finemapped_results.py \
       -i !{finemapped} \
-      -s naive \
+      -s no_filter \
       -o finemapped.results.tsv
       '''
 }
