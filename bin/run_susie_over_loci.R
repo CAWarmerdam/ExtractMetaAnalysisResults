@@ -107,8 +107,6 @@ get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_e
     mutate(z_score = beta / standard_error) %>%
     as.data.table()
 
-  print(as_tibble(z_score_dt))
-
   # Get z-score matrix from data table
   z_score_mat <- z_score_dt %>%
     pivot_wider(id_cols = "variant_index", names_from = "phenotype", values_from = "z_score") %>%
@@ -154,7 +152,6 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
   start.time <- Sys.time()
   ld_matrix <- get_ld_matrix(permuted_dataset, variant_index_start, variant_index_end)
   print(as_tibble(ld_matrix))
-  print(ld_matrix[1:10, 1:10])
   variant_order <- rownames(ld_matrix)
   end.time <- Sys.time()
   time.taken <- end.time - start.time
@@ -175,25 +172,27 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
     gene_summary_stats <- empirical_dataset %>%
       filter(phenotype == gene, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
       as.data.table()
-    print(as_tibble(gene_summary_stats))
 
-    # Yet to order the gene_summary_stats so that the variant ordering matches that of the ld_matrix
-    gene_summary_stats <- gene_summary_stats[match(variant_order, rownames(gene_summary_stats)), match(variant_order, rownames(gene_summary_stats))]
+    variant_order_filtered <- variant_order[variant_order %in% gene_summary_stats$variant_index]
+    
+    gene_summary_stats <- gene_summary_stats[match(variant_order_filtered, (gene_summary_stats$variant_index)), ]
+    gene_summary_stats <- gene_summary_stats[gene_summary_stats$variant_index %in% variant_order_filtered, ]
+    print(gene_summary_stats)
     # Do fine-mapping
-    if(all(rownames(gene_summary_stats) == variant_order)){
+    if(all(gene_summary_stats$variant_index == variant_order_filtered)){
       nCS = 10
 
       estimated_res_var = T
       fitted_rss2 <- tryCatch({
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
       }, error = function(e) {
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
         estimated_res_var = F
         return(fitted_rss2)
       })
 
       if(!fitted_rss2$converged){
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
+        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
         estimated_res_var = F
       }
 
@@ -202,34 +201,48 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
 
       if(fitted_rss2$converged){
         print(summary(fitted_rss2))
-        gene_summary_stats["SusieRss_pip"] = fitted_rss2$pip
-        gene_summary_stats["SusieRss_CS"] = NA
-        gene_summary_stats["SusieRss_ResVar"] = estimated_res_var
+        print("test0")
+        gene_summary_stats$SusieRss_pip = fitted_rss2$pip
+        gene_summary_stats$SusieRss_CS = NA
+        gene_summary_stats$SusieRss_ResVar = estimated_res_var
+        print("test1")
         if(length(fitted_rss2$sets[[1]])!=0){
           for(l in 1:length(fitted_rss2$sets[[1]])){
-            gene_summary_stats$SusieRss_CS[fitted_rss2$sets[[1]][[l]]]=l
+            gene_summary_stats$SusieRss_CS[fitted_rss2$sets[[1]][[l]]]=gsub("L","",names(fitted_rss2$sets[[1]])[l])
           }
         }
         lbfOut = t(fitted_rss2$lbf_variable)
+        print("test2")
         if(ncol(lbfOut)<nCS){
           lbfOut = as.data.frame(lbfOut)
           for(j in 1:(nCS - ncol(lbfOut))){
             lbfOut[paste("lbf_cs",j,sep="_")] = NA
           }
         }
+        print("test3")
         colnames(lbfOut) = paste("lbf_cs",1:nCS,sep="_")
-        gene_summary_stats = cbind(gene_summary_stats,lbfOut)
+        gene_summary_stats = cbind(gene_summary_stats, lbfOut)
       } else {
-        gene_summary_stats["SusieRss_pip"] = NA
-        gene_summary_stats["SusieRss_CS"] = NA
-        gene_summary_stats["SusieRss_ResVar"] = NA
+        print("Did not converge")
+        gene_summary_stats$SusieRss_pip = NA
+        gene_summary_stats$SusieRss_CS = NA
+        gene_summary_stats$SusieRss_ResVar = NA
         for(j in 1:nCS){
-          gene_summary_stats[paste("lbf_cs",j,sep="_")] = NA
+          gene_summary_stats[[paste("lbf_cs",j,sep="_")]] = NA
         }
       }
 
+    } else {
+      print("Was not able to start fine-mapping: variant_order does not align with gene_summary_stats")
+      gene_summary_stats$SusieRss_pip = NA
+      gene_summary_stats$SusieRss_CS = NA
+      gene_summary_stats$SusieRss_ResVar = NA
+      for(j in 1:nCS){
+        gene_summary_stats[[paste("lbf_cs",j,sep="_")]] = NA
+      }
     }
-    return gene_summary_stats
+    print(gene_summary_stats)
+    return(gene_summary_stats)
   }, locus_bed$gene, locus_bed$start, locus_bed$end, SIMPLIFY =F))
 
   # Return
@@ -287,7 +300,7 @@ main <- function(argv=NULL) {
 
   combined_results <- bind_rows(fine_mapping_results_per_locus)
 
-  fwrite(combined_results, "fine_mapping_results.tsv", sep="\t", quote=F, row.names=F, col.names=T)
+  fwrite(combined_results, "finemapped.results.tsv", sep="\t", quote=F, row.names=F, col.names=T)
 }
 
 if (sys.nframe() == 0 && !interactive()) {
