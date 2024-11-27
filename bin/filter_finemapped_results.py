@@ -49,7 +49,9 @@ import pandas as pd
 def main(args):
   df = pd.read_csv(args.inputPath, sep="\t")
 
-  if args.strategy == 'naive':
+  if args.strategy == 'no_filter':
+    pass
+  elif args.strategy == 'naive':
     df = df[df['SusieRss_pip'] > 0.9]
 
   df.to_csv(args.outputPath, sep="\t", index=False)
