@@ -33,6 +33,7 @@ process ExtractVariants {
         path variants
         val cols
         val p_threshold
+        val mode
 
     output:
         path "extracted*.out.csv"
@@ -40,8 +41,9 @@ process ExtractVariants {
     shell:
         variants_arg = (variants.name != 'NO_FILE') ? "--variants-file ${variants}" : ""
         p_threshold_arg = (p_threshold != 'NULL') ? "--p-thresh ${p_threshold}" : ""
+        clump_arg = (mode == 'clump') ? "--dist-clump" : ""
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
-        prefix = (genes.size() == 1) ? genes.collect { "extracted.$it" }.join("") : "extracted"
+        prefix = (genes.size() == 1) ? genes.collect { "extracted.$it" }.join("") : "extracted.${genes[0]}"
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
@@ -55,9 +57,48 @@ process ExtractVariants {
             --genes !{genes.join(' ')} \
             !{variants_arg} \
             !{p_threshold_arg} \
+            !{clump_arg} \
             --variant-reference !{variant_reference} \
             --output-prefix !{prefix} \
             --cols '!{cols}'
+
+        rm -r tmp_eqtls
+        '''
+}
+
+
+process ExtractCorrectedTransQtls {
+    scratch true
+
+    input:
+        path input
+        path cisExplainedVariance
+        path variantReference
+        path geneReference
+        path genes
+
+    output:
+        path "extracted*.txt.gz"
+
+    shell:
+        '''
+        mkdir tmp_eqtls
+        echo "!{phenotypes_formatted}" > file_matches.txt
+
+        touch genes.txt
+
+        while read gene; do
+          cp -r "!{input}/${gene}" tmp_eqtls/
+          echo "${}" >> genes.txt
+        done <file_matches.txt
+
+        correct_trans_for_cis.R \
+            --input-file tmp_eqtls \
+            --cis-explained-variance ${cisExplainedVariance} \
+            --variant-reference !{variantReference} \
+            --gene-reference !{geneReference}
+            --genes genes.txt \
+            --output-prefix extracted
 
         rm -r tmp_eqtls
         '''
