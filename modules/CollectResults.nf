@@ -64,6 +64,44 @@ process ExtractVariants {
 }
 
 
+process ExtractCorrectedTransQtls {
+    scratch true
+
+    input:
+        path input
+        path cisExplainedVariance
+        path variantReference
+        path geneReference
+        path genes
+
+    output:
+        path "extracted*.txt.gz"
+
+    shell:
+        '''
+        mkdir tmp_eqtls
+        echo "!{phenotypes_formatted}" > file_matches.txt
+
+        touch genes.txt
+
+        while read gene; do
+          cp -r "!{input}/${gene}" tmp_eqtls/
+          echo "${}" >> genes.txt
+        done <file_matches.txt
+
+        correct_trans_for_cis.R \
+            --input-file tmp_eqtls \
+            --cis-explained-variance ${cisExplainedVariance} \
+            --variant-reference !{variantReference} \
+            --gene-reference !{geneReference}
+            --genes genes.txt \
+            --output-prefix extracted
+
+        rm -r tmp_eqtls
+        '''
+}
+
+
 process ExtractGeneVariantPairs {
     scratch true
 
