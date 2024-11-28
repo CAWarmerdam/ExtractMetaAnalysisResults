@@ -2,11 +2,14 @@
 
 
 # Load libraries
+library(argparse)
 library(tidyverse)
 library(data.table)
+#library(extrafont)
+library(arrow)
 
 # Declare constants
-loadfonts()
+#loadfonts()
 old <- theme_set(theme_classic(base_size = 10))
 theme_update(
   line = element_line(
@@ -24,7 +27,7 @@ parser <- ArgumentParser(description = 'Correct trans-eQTLs for cis-eQTLs.')
 
 # Add command-line arguments
 parser$add_argument(
-  "--input-file",
+  "--input-path",
   required = TRUE,
   help = "Path to the directory containing empirical data."
 )
@@ -58,6 +61,30 @@ parser$add_argument(
   required = TRUE,
   help = "Output prefix"
 )
+
+
+ZtoP <- function (Z, largeZ = FALSE, log10P = TRUE) 
+{
+    if (!is.numeric(Z)) {
+        message("Some of the Z-scores are not numbers! Please check why!")
+        message("Converting the non-numeric vector to numeric vector.")
+        Z <- as.numeric(Z)
+    }
+    if (largeZ == TRUE) {
+        P <- log(2) + pnorm(abs(Z), lower.tail = FALSE, log.p = TRUE)
+        if (largeZ == TRUE & log10P == TRUE) {
+            P <- -(P * log10(exp(1)))
+        }
+    }
+    else {
+        P <- 2 * pnorm(abs(Z), lower.tail = FALSE)
+        if (min(P) == 0) {
+            P[P == 0] <- .Machine$double.xmin
+            message("Some Z-score indicates very significant effect and P-value is truncated on 2.22e-308. If relevant, consider using largeZ = TRUE argument and logarithmed P-values instead.")
+        }
+    }
+    return(P)
+}
 
 
 
@@ -220,18 +247,17 @@ identify_cis_explained_variance <- function(input = "lead_variants.txt") {
 }
 
 
-extract_gene <- function(input_path, gene, cis_explained_variance, variant_reference, gene_reference) {
+extract_gene <- function(ds, gene, cis_explained_variance, variant_reference, gene_reference) {
   uncorrected_p <- calculate_uncorrected_p_value(cis_explained_variance, 43301-1)$uncorrected_p
 
   trans_boundary <- 5e6
 
-  ds <- open_dataset(sprintf("%s/phenotype=%s", args$input_path, gene))
-
-  extract <- ds %>% collect() %>%
+  extract <- ds %>% filter(phenotype == gene) %>% collect() %>%
     mutate(z_score = beta/standard_error, p = 2*pnorm(abs(z_score), lower.tail=F)) %>%
     filter(p < uncorrected_p) %>%
-    inner_join(variant_reference)
-
+    inner_join(variant_reference) %>%
+    mutate(chromosome = as.character(chromosome))
+  
   res <- IdentifyLeadSNPs(
     extract,
     snp_id_col="variant_index",
@@ -242,9 +268,9 @@ extract_gene <- function(input_path, gene, cis_explained_variance, variant_refer
     Pthresh=uncorrected_p)
 
   results <- extract %>% filter(variant_index %in% res$SNP) %>%
-    inner_join(gene_reference) %>%
+    inner_join(gene_reference, by = c("phenotype" = "gene_id")) %>%
     mutate(
-      cis_like = chromosome == seqname & bp > start - trans_boundary & bp < end + trans_boundary) %>%
+      cis_like = chromosome == seqid & bp > start - trans_boundary & bp < end + trans_boundary) %>%
     filter(!cis_like) %>%
     mutate(
       corrected_p = correct_for_primary_effect(z_score, cis_explained_variance, sample_size - 1)) %>%
@@ -266,18 +292,23 @@ main <- function(argv = NULL) {
 
   args <- parser$parse_args(argv)
 
-  gene_list <- fread(args$genes)$V1
+  gene_list <- fread(args$genes, header=F)$V1
 
   explained_variance <- fread(args$cis_explained_variance, data.table = F)
   variant_reference <- read_parquet(args$variant_reference)
-  gene_reference <- read_parquet(args$gene_reference)
+  gene_reference <- fread(args$gene_reference)
+
+  ds <- open_dataset(args$input_path)
 
   bound <- bind_rows(mapply(function(gene) {
+    print(sprintf("Gene: %s", gene))
     cis_explained_variance <- explained_variance[explained_variance$phenotype==gene, "cis_explained_variance"]
     results <- extract_gene(
-      args$input, gene, cis_explained_variance,
+      ds, gene, cis_explained_variance,
       variant_reference = variant_reference,
       gene_reference = gene_reference)
+    print(sprintf("Found N trans-eQTLs after correction: %d", nrow(results)))
+    return(results)
   }, gene_list, SIMPLIFY=F))
 
   fwrite(bound, sprintf("%s.trans_eQTL_list_after_correction.txt.gz", args$output_prefix), sep="\t", col.names=F, row.names=T, quote=F)

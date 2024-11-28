@@ -78,15 +78,6 @@ summary['Script dir']                               = workflow.projectDir
 summary['Config Profile']                           = workflow.profile
 summary['Container Engine']                         = workflow.containerEngine
 if(workflow.containerEngine) summary['Container']   = workflow.container
-summary['Empirical eQTLs']                          = params.empirical
-summary['Permuted eQTLs']                           = params.permuted
-summary['Reference data']                           = params.reference_data
-summary['Genome reference']                         = params.genome_reference
-summary['Variant reference']                        = params.variant_reference
-summary['Gene reference']                           = params.gene_reference
-summary['Gene list']                                = params.genes
-summary['Extract loci']                             = extract_loci
-summary['Extract variants']                         = extract_variants
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
@@ -98,7 +89,7 @@ log.info "======================================================="
 
 workflow {
     // Buffer genes
-    genes_buffered_ch = genes_ch.collate(gene_chunk_size)
+    genes_buffered_ch = genes_ch.collate(gene_chunk_size).first()
 
     // Extract genes
     loci_extracted_ch = ExtractCorrectedTransQtls(input_parquet_ch, cis_explained_variance_ch, variant_reference_ch, gene_reference_ch, genes_buffered_ch)
