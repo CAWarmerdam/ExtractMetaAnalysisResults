@@ -33,6 +33,7 @@ process ExtractVariants {
         path variants
         val cols
         val p_threshold
+        val mode
 
     output:
         path "extracted*.out.csv"
@@ -40,8 +41,9 @@ process ExtractVariants {
     shell:
         variants_arg = (variants.name != 'NO_FILE') ? "--variants-file ${variants}" : ""
         p_threshold_arg = (p_threshold != 'NULL') ? "--p-thresh ${p_threshold}" : ""
+        clump_arg = (mode == 'clump') ? "--dist-clump" : ""
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
-        prefix = (genes.size() == 1) ? genes.collect { "extracted.$it" }.join("") : "extracted"
+        prefix = (genes.size() == 1) ? genes.collect { "extracted.$it" }.join("") : "extracted.${genes[0]}"
         '''
         mkdir tmp_eqtls
         echo "!{phenotypes_formatted}" > file_matches.txt
@@ -55,6 +57,7 @@ process ExtractVariants {
             --genes !{genes.join(' ')} \
             !{variants_arg} \
             !{p_threshold_arg} \
+            !{clump_arg} \
             --variant-reference !{variant_reference} \
             --output-prefix !{prefix} \
             --cols '!{cols}'
