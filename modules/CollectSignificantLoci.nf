@@ -107,11 +107,15 @@ process DefineFineMappingLoci {
             grep "$g" loci_3Mb_window.bed | bedtools sort | bedtools merge -c 4 -o distinct >> loci_3Mb_merged_per_gene.bed
         done < unique_genes.txt
 
+        # Potentially remove the HLA region
+        echo '6\t28510120\t33480577\tHLA\n' > hla_range.bed
+        bedtools intersect -a loci_3Mb_merged_per_gene.bed -b hla_range.bed -v > loci_3Mb_merged_per_gene_filtered.bed
+
         # Sort the resulting bed file
-        bedtools sort -i loci_3Mb_merged_per_gene.bed > loci_3Mb_merged_per_gene_sorted.bed
+        bedtools sort -i loci_3Mb_merged_per_gene_filtered.bed > loci_3Mb_merged_per_gene_filtered_sorted.bed
 
         # Assign your windows to clusters.
-        assign_clusters.py loci_3Mb_merged_per_gene_sorted.bed 5000000 finemapping_loci
+        assign_clusters.py loci_3Mb_merged_per_gene_filtered_sorted.bed 5000000 finemapping_loci
         '''
 }
 
