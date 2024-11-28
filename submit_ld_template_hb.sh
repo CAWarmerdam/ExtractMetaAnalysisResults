@@ -29,7 +29,8 @@ permuted=/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/eqtl_map
 significant="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/Interpretation/cis-trans-coloc/input/2024-11-27_10_sampled_genes_all_p5e8_esnps_test.csv.gz"
 
 #uncorrelated_genes="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/Interpretation/extractions/correction_optimization/permuted1_all_4GenPCTechCov_2024-06-26/exported_matrix/uncorrelated_gene_list_all_samples_n702_rsq0.04.txt"
-uncorrelated_genes="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/input/uncorrelated_gene_list_all_samples_n702_rsq0.04_genes_available_20241125.txt"
+#uncorrelated_genes="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/input/uncorrelated_gene_list_all_samples_n702_rsq0.04_genes_available_20241125.txt"
+uncorrelated_genes="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/input/uncorrelated_gene_list_variable_availability_n2051_rsq0.02_genes_available_20241127.txt"
 #uncorrelated_genes="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/Interpretation/extractions/correction_optimization/permuted1_all_4GenPCTechCov_2024-06-26/exported_matrix/2024-11-22_10_uncorrelated_genes_test.txt"
 
 genome_reference="/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/public_data/hg38.genome"
