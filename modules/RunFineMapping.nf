@@ -22,7 +22,7 @@ process UncorrelatedGenes {
 }
 
 process RunFineMappingOnCalculatedLd {
-    scratch false // Needs to be set to true!
+    scratch true // Needs to be set to true!
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
     input:
@@ -49,12 +49,12 @@ process RunFineMappingOnCalculatedLd {
 
         # Need to add -L to cp command when running on a compute nodes scratch space
         while read gene; do
-          cp -r "!{empirical}/phenotype=${gene}" tmp_empirical/
+          cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
         # Need to add -L to cp command when running on a compute nodes scratch space
         while read gene; do
-          cp -r "!{permuted}/phenotype=${gene}" tmp_permuted/
+          cp -rL "!{permuted}/phenotype=${gene}" tmp_permuted/
         done <unique_genes_permuted.txt
 
         run_susie_over_loci.R \
