@@ -201,25 +201,22 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
 
       if(fitted_rss2$converged){
         print(summary(fitted_rss2))
-        print("test0")
+#        gene_summary_stats$SusieRss_lambda = estimate_s_rss(z=gene_summary_stats$beta / gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),n=max(gene_summary_stats$sample_size))
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
         gene_summary_stats$SusieRss_CS = NA
         gene_summary_stats$SusieRss_ResVar = estimated_res_var
-        print("test1")
         if(length(fitted_rss2$sets[[1]])!=0){
           for(l in 1:length(fitted_rss2$sets[[1]])){
             gene_summary_stats$SusieRss_CS[fitted_rss2$sets[[1]][[l]]]=gsub("L","",names(fitted_rss2$sets[[1]])[l])
           }
         }
         lbfOut = t(fitted_rss2$lbf_variable)
-        print("test2")
         if(ncol(lbfOut)<nCS){
           lbfOut = as.data.frame(lbfOut)
           for(j in 1:(nCS - ncol(lbfOut))){
             lbfOut[paste("lbf_cs",j,sep="_")] = NA
           }
         }
-        print("test3")
         colnames(lbfOut) = paste("lbf_cs",1:nCS,sep="_")
         gene_summary_stats = cbind(gene_summary_stats, lbfOut)
       } else {

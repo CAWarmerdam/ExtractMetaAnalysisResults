@@ -36,7 +36,7 @@ Mandatory arguments:
 --genes               Path to a file with all unique genes
 --maf-table           Path to table with maf per variant
 --ld-dataset          Path to LD dataset
---output         	  Path to outputfolder
+--output              Path to outputfolder
 
 """.stripIndent()
 
