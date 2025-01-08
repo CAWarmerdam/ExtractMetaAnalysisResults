@@ -63,6 +63,22 @@ process AnnotateResults {
         """
 }
 
+process AnnotateSignificantVariants {
+    executor 'local'
+
+    input:
+        path signSubset
+        path variantReference
+
+    output:
+        path "sign_variants.csv"
+
+    shell:
+        '''
+        annotate_significant_variants.R --sign-subset !{signSubset} --variant-reference !{variantReference} --output-file "sign_variants.csv"
+        '''
+}
+
 process DefineFineMappingLoci {
     input:
         path signVariants
@@ -80,22 +96,26 @@ process DefineFineMappingLoci {
 
         # First, get the relevant columns to make a bed file, and apply a splop to make a total
         # window of 3Mb
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $10,$9-1,$9,$2}' !{signVariants} \
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $13,$12-1,$12,$1}' !{signVariants} \
         | bedtools slop -b 1500000 -g !{genomeRef} > loci_3Mb_window.bed
 
         # Second, extract the gene ENSG identifiers, and get a set of identifiers, removing duplicates
-        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $2}' !{signVariants} | sort | uniq > unique_genes.txt
+        awk -F'\t' 'BEGIN {OFS = FS} NR>1 {print $1}' !{signVariants} | sort | uniq > unique_genes.txt
 
         # Loop through the set of ENSG identifiers, merging the loci for each gene
         while read g; do
             grep "$g" loci_3Mb_window.bed | bedtools sort | bedtools merge -c 4 -o distinct >> loci_3Mb_merged_per_gene.bed
         done < unique_genes.txt
 
+        # Potentially remove the HLA region
+        echo '6\t28510120\t33480577\tHLA\n' > hla_range.bed
+        bedtools intersect -a loci_3Mb_merged_per_gene.bed -b hla_range.bed -v > loci_3Mb_merged_per_gene_filtered.bed
+
         # Sort the resulting bed file
-        bedtools sort -i loci_3Mb_merged_per_gene.bed > loci_3Mb_merged_per_gene_sorted.bed
+        bedtools sort -i loci_3Mb_merged_per_gene_filtered.bed > loci_3Mb_merged_per_gene_filtered_sorted.bed
 
         # Assign your windows to clusters.
-        assign_clusters.py loci_3Mb_merged_per_gene_sorted.bed 5000000 finemapping_loci
+        assign_clusters.py loci_3Mb_merged_per_gene_filtered_sorted.bed 5000000 finemapping_loci
         '''
 }
 

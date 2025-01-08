@@ -6,7 +6,7 @@
 nextflow.enable.dsl = 2
 
 // import modules
-include { ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
+include { AnnotateSignificantVariants; ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
 include { RunFineMappingOnCalculatedLd; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 
@@ -36,7 +36,7 @@ Mandatory arguments:
 --genes               Path to a file with all unique genes
 --maf-table           Path to table with maf per variant
 --ld-dataset          Path to LD dataset
---output         	  Path to outputfolder
+--output              Path to outputfolder
 
 """.stripIndent()
 
@@ -50,6 +50,7 @@ if (params.help){
 }
 
 //Default parameters
+Channel.fromPath(params.significant).collect().set { significant_subset_ch }
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
@@ -57,14 +58,6 @@ Channel.fromPath(params.uncorrelated_genes).collect().set { uncorrelated_genes_c
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
-
-cohorts_ch = Channel.fromPath(params.mastertable)
-    .ifEmpty { error "Cannot find master table from: ${params.mastertable}" }
-    .splitCsv(header: true, sep: '\t', strip: true)
-    .map{row -> [ row.cohort_new_name ]}
-    .collect()
-
-inclusion_step_output_ch = file(params.inclusion_step_output)
 
 gene_chunk_size=200
 loci_per_job=100
@@ -95,19 +88,13 @@ log.info "======================================================="
 
 workflow LOCI {
     take:
-        empirical_parquet_ch
-        genes_buffered_ch
+        significant_subset_ch
         variant_reference_ch
-        gene_reference_ch
         genome_ref_ch
-        inclusion_step_output_ch
-        cohorts_list
 
     main:
-        // For every gene, get lead variants for significant results, and apply a window of 1Mb around the lead variant,
-        // annotate with cis/trans write bed file
-        significant_results_ch = ExtractSignificantResults(empirical_parquet_ch, variant_reference_ch, gene_reference_ch, inclusion_step_output_ch, genes_buffered_ch, 0.000000000002496, cohorts_list)
-            .collectFile(name: 'sign_variants.csv', skip: 1, keepHeader: true, cache: true, storeDir: "${params.output}/significant_results").collect()
+        // Annotate significant variants with bp positions
+        significant_results_ch = AnnotateSignificantVariants(significant_subset_ch, variant_reference_ch)
 
         // Output a channel of sorted bed files (by start pos).
         // Each bed file has the following columns: chr, start, end, name.
@@ -146,9 +133,7 @@ workflow {
 
     // Define loci to do finemapping for
     LOCI(
-        empirical_parquet_ch,genes_buffered_ch,
-        variant_reference_ch,gene_reference_ch,genome_ref_ch,
-        inclusion_step_output_ch,cohorts_ch.collect())
+        significant_subset_ch,variant_reference_ch,genome_ref_ch)
 
     // Do finemapping
     FINEMAPPING(
