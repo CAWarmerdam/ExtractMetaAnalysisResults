@@ -65,6 +65,15 @@ parser$add_argument(
   help = "Space-separated list of BED files."
 )
 
+parser$add_argument(
+  "--debug",
+  required = FALSE,
+  default = TRUE,
+  action = 'store_true',
+  help = "Enables writing SuSIE input"
+)
+
+
 # Declare function definitions
 
 #' Convert Z-Score to Correlation Coefficient
@@ -98,6 +107,28 @@ zToCor <- function(z, df){
   r <- t/sqrt(df+t^2)
   r <- ifelse(z > 0, r * -1, r)
   return(r)
+}
+
+# Extract locus as data table
+get_ld_matrix_alt <- function(permuted_dataset, variant_index_start, variant_index_end) {
+  rho_mat <- permuted_dataset %>%
+    filter(between(variant_index, variant_index_start, variant_index_end)) %>%
+    collect() %>% as.data.table() %>% dcast(variant_index ~ phenotype, value.var = "rho") %>% 
+    as.matrix(rownames=1)
+
+  start.time <- Sys.time()
+
+  rho_mat <- rho_mat - rowMeans(rho_mat)
+  # Standardize each variable
+  rho_mat <- rho_mat / sqrt(rowSums(rho_mat^2))
+  # Calculate correlations
+  ld_matrix <- tcrossprod(rho_mat)
+
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+
+  print(time.taken)
+  return(ld_matrix)
 }
 
 # Extract locus as data table
@@ -135,7 +166,7 @@ get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_e
   return(ld_matrix)
 }
 
-finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, variant_reference) {
+finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, variant_reference, debug=FALSE) {
   locus_chromosome <- unique(locus_bed %>% pull(chromosome))
   locus_start <- min(locus_bed %>% pull(start))
   locus_end <- max(locus_bed %>% pull(end))
@@ -150,7 +181,7 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
 
   message("Starting to calculate LD...")
   start.time <- Sys.time()
-  ld_matrix <- get_ld_matrix(permuted_dataset, variant_index_start, variant_index_end)
+  ld_matrix <- get_ld_matrix_alt(permuted_dataset, variant_index_start, variant_index_end)
   print(as_tibble(ld_matrix))
   variant_order <- rownames(ld_matrix)
   end.time <- Sys.time()
@@ -201,7 +232,7 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
 
       if(fitted_rss2$converged){
         print(summary(fitted_rss2))
-#        gene_summary_stats$SusieRss_lambda = estimate_s_rss(z=gene_summary_stats$beta / gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),n=max(gene_summary_stats$sample_size))
+        gene_summary_stats$SusieRss_lambda = estimate_s_rss(z=gene_summary_stats$beta / gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),n=max(gene_summary_stats$sample_size))
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
         gene_summary_stats$SusieRss_CS = NA
         gene_summary_stats$SusieRss_ResVar = estimated_res_var
@@ -227,6 +258,14 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
         for(j in 1:nCS){
           gene_summary_stats[[paste("lbf_cs",j,sep="_")]] = NA
         }
+      }
+
+      if (debug) {
+        debug_table <- gene_summary_stats %>% mutate(Z = beta / standard_error) %>% rename(RSID = variant_index)
+
+        fwrite(debug_table, sprintf("summary_stats_%s.txt.gz", gene), sep="\t", col.names=T, row.names=F, quote=F)
+        fwrite(z %>% select(RSID, Z), sprintf("Z_%s_RSparsePro.txt", gene), sep="\t", col.names=T, row.names=F, quote=F)
+        fwrite(as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), sprintf("LD_%s_RSparsePro.txt", gene), sep="\t", col.names=F, row.names=F, quote=F)
       }
 
     } else {
@@ -280,10 +319,15 @@ main <- function(argv=NULL) {
   variant_reference_path <- args$variant_reference
 
   variant_reference <- arrow::read_parquet(variant_reference_path)
+  uncorrelated_genes <- fread(args$uncorrelated_genes, header=F)$V1
 
   # load in parquet with Robert's strategy
   empirical_dataset <- open_dataset(sumstats_path)
-  permuted_dataset <- arrow::open_dataset(permuted_dataset_path)
+
+  # Switched to new ld reference dataset files with just phenotypes, variant_indices, and rho values
+  # Added filtering on uncorrelated genes, since the dataset is no longer prefiltered on uncorrelated genes 
+  # (the entire set of permuted genes is in this dataset)
+  permuted_dataset <- arrow::open_dataset(permuted_dataset_path) %>% filter(phenotype %in% uncorrelated_genes) 
 
   fine_mapping_results_per_locus <- mapply(function(bed_file) {
     locus_bed <- fread(bed_file, col.names = c("chromosome", "start", "end", "gene", "cluster"))
@@ -291,7 +335,8 @@ main <- function(argv=NULL) {
     fine_mapping_output <- finemap_locus(empirical_dataset=empirical_dataset,
                                          permuted_dataset=permuted_dataset,
                                          locus_bed=locus_bed,
-                                         variant_reference=variant_reference)
+                                         variant_reference=variant_reference,
+                                         debug=args$debug)
     return(fine_mapping_output)
   }, args$bed_files, SIMPLIFY = F)
 
