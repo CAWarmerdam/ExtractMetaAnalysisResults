@@ -49,6 +49,10 @@ if (params.help){
     exit 0
 }
 
+
+// Define list of chromosomes to analyse
+chromosomes = params.chromosome ? [params.chromosome.toString()] : (1..22).collect { it.toString() }
+
 //Default parameters
 Channel.fromPath(params.significant).collect().set { significant_subset_ch }
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
@@ -60,7 +64,7 @@ Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch 
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
 gene_chunk_size=200
-loci_per_job=100
+loci_per_job=1 // TODO: TMP, change back to 5
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
@@ -77,11 +81,12 @@ summary['Container Engine']                         = workflow.containerEngine
 if(workflow.containerEngine) summary['Container']   = workflow.container
 summary['Empirical eQTLs']                          = params.empirical
 summary['Permuted eQTLs']                           = params.permuted
-summary['Reference data']                           = params.reference_data
+summary['Significant eQTLs']                        = params.significant
 summary['Genome reference']                         = params.genome_reference
 summary['Variant reference']                        = params.variant_reference
 summary['Gene reference']                           = params.gene_reference
 summary['Gene list']                                = params.genes
+summary['Chromosomes']				    = chromosomes
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
@@ -95,12 +100,23 @@ workflow LOCI {
     main:
         // Annotate significant variants with bp positions
         significant_results_ch = AnnotateSignificantVariants(significant_subset_ch, variant_reference_ch)
+            .flatten()
+            .map { file ->
+             // Extract the chromosome number using regex
+             def match = file.name =~ /chr(\w+)\.csv/
+             def chromosome = match.size() == 1 ? match[0][1] : null
+             // Return a tuple (chromosome number, file)
+             [chromosome, file]
+        }
+        .filter { tuple -> tuple[0] != null } // Ensure chromosome is found
+        .filter { tuple -> tuple[0] in chromosomes } // Filter on chromosome to analyse
+        .view()
 
         // Output a channel of sorted bed files (by start pos).
         // Each bed file has the following columns: chr, start, end, name.
         // Where, each row is defined by a significant lead variant, with a 1Mb base pair window around the lead variant
         // The highest end pos must never be greater than the lowest start pos + 5Mb
-        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch).flatten()
+        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch)
     emit:
         loci = loci_ch
 }
@@ -115,7 +131,7 @@ workflow FINEMAPPING {
         loci_per_job
 
     main:
-        loci_bed_collated_ch = loci_bed_ch.collate(loci_per_job)
+        loci_bed_collated_ch = loci_bed_ch.flatMap { chromosome, files -> files.collate(loci_per_job).collect { chunk -> [chromosome, chunk] } }
 
         finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch).flatten()
 
