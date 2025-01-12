@@ -64,28 +64,27 @@ process AnnotateResults {
 }
 
 process AnnotateSignificantVariants {
-    executor 'local'
 
     input:
         path signSubset
         path variantReference
 
     output:
-        path "sign_variants.csv"
+        path "sign_variants.chr*.csv"
 
     shell:
         '''
-        annotate_significant_variants.R --sign-subset !{signSubset} --variant-reference !{variantReference} --output-file "sign_variants.csv"
+        annotate_significant_variants.R --sign-subset !{signSubset} --variant-reference !{variantReference} --output-prefix "sign_variants"
         '''
 }
 
 process DefineFineMappingLoci {
     input:
-        path signVariants
+        tuple val(chromosome), path(signVariants)
         path genomeRef
 
     output:
-        path "finemapping_loci_*.bed"
+        tuple val(chromosome), path("finemapping_loci_*.bed")
 
     shell:
         '''
