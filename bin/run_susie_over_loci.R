@@ -68,9 +68,17 @@ parser$add_argument(
 parser$add_argument(
   "--debug",
   required = FALSE,
-  default = TRUE,
+  default = FALSE,
   action = 'store_true',
   help = "Enables writing SuSIE input"
+)
+
+parser$add_argument(
+  "--dry-run",
+  required = FALSE,
+  default = FALSE,
+  action = 'store_true',
+  help = "Runs code without actually running SuSIE"
 )
 
 
@@ -166,7 +174,7 @@ get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_e
   return(ld_matrix)
 }
 
-finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, variant_reference, debug=FALSE) {
+finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, variant_reference, debug=FALSE, dry_run=FALSE, nCS = 10) {
   locus_chromosome <- unique(locus_bed %>% pull(chromosome))
   locus_start <- min(locus_bed %>% pull(start))
   locus_end <- max(locus_bed %>% pull(end))
@@ -210,8 +218,7 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
     gene_summary_stats <- gene_summary_stats[gene_summary_stats$variant_index %in% variant_order_filtered, ]
     print(gene_summary_stats)
     # Do fine-mapping
-    if(all(gene_summary_stats$variant_index == variant_order_filtered)){
-      nCS = 10
+    if(all(gene_summary_stats$variant_index == variant_order_filtered) & !dry_run){
 
       estimated_res_var = T
       fitted_rss2 <- tryCatch({
@@ -260,22 +267,29 @@ finemap_locus <- function(empirical_dataset, permuted_dataset, locus_bed, varian
         }
       }
 
-      if (debug) {
-        debug_table <- gene_summary_stats %>% mutate(Z = beta / standard_error) %>% rename(RSID = variant_index)
-
-        fwrite(debug_table, sprintf("summary_stats_%s.txt.gz", gene), sep="\t", col.names=T, row.names=F, quote=F)
-        fwrite(z %>% select(RSID, Z), sprintf("Z_%s_RSparsePro.txt", gene), sep="\t", col.names=T, row.names=F, quote=F)
-        fwrite(as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), sprintf("LD_%s_RSparsePro.txt", gene), sep="\t", col.names=F, row.names=F, quote=F)
-      }
-
     } else {
-      print("Was not able to start fine-mapping: variant_order does not align with gene_summary_stats")
+      if (!dry_run) {
+        print("Was not able to start fine-mapping: variant_order does not align with gene_summary_stats")
+      } else {
+        print("Dry-run enabled. Skipped Fine-mapping.")
+      }
       gene_summary_stats$SusieRss_pip = NA
       gene_summary_stats$SusieRss_CS = NA
       gene_summary_stats$SusieRss_ResVar = NA
       for(j in 1:nCS){
         gene_summary_stats[[paste("lbf_cs",j,sep="_")]] = NA
       }
+    }
+
+    if (debug) {
+      print("Writing debugging tables")
+      debug_table <- gene_summary_stats %>% 
+        mutate(Z = beta / standard_error, P=2*pnorm(q=abs(Z), lower.tail=FALSE)) %>% 
+        rename(RSID = variant_index) %>%
+        inner_join(variant_reference, by = c("RSID"="variant_index"))
+      fwrite(debug_table, sprintf("summary_stats_%s.txt", gene), sep="\t", col.names=T, row.names=F, quote=F)
+      fwrite(debug_table %>% select(RSID, Z), sprintf("Z_%s_RSparsePro.txt", gene), sep="\t", col.names=T, row.names=F, quote=F)
+      fwrite(as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), sprintf("LD_%s_RSparsePro.txt", gene), sep="\t", col.names=F, row.names=F, quote=F)
     }
     print(gene_summary_stats)
     return(gene_summary_stats)
@@ -312,6 +326,8 @@ main <- function(argv=NULL) {
   cat("Variant reference file:", args$variant_reference, "\n")
   cat("Uncorrelated genes file:", args$uncorrelated_genes, "\n")
   cat("BED files:", paste(args$bed_files, collapse = ", "), "\n")
+  cat("Debugging:", args$debug, "\n")
+  cat("Dry-run:", args$dry_run, "\n")
 
   # get path of parquet from arguments
   sumstats_path <- args$empirical
@@ -320,6 +336,9 @@ main <- function(argv=NULL) {
 
   variant_reference <- arrow::read_parquet(variant_reference_path)
   uncorrelated_genes <- fread(args$uncorrelated_genes, header=F)$V1
+ 
+  dry_run <- args$dry_run
+  debug <- args$debug
 
   # load in parquet with Robert's strategy
   empirical_dataset <- open_dataset(sumstats_path)
@@ -336,13 +355,16 @@ main <- function(argv=NULL) {
                                          permuted_dataset=permuted_dataset,
                                          locus_bed=locus_bed,
                                          variant_reference=variant_reference,
-                                         debug=args$debug)
+                                         debug=debug,
+                                         dry_run=dry_run)
     return(fine_mapping_output)
   }, args$bed_files, SIMPLIFY = F)
 
   combined_results <- bind_rows(fine_mapping_results_per_locus)
 
-  fwrite(combined_results, "finemapped.results.tsv", sep="\t", quote=F, row.names=F, col.names=T)
+  if (!dry_run) {
+    fwrite(combined_results, "finemapped.results.tsv", sep="\t", quote=F, row.names=F, col.names=T)
+  }
 }
 
 if (sys.nframe() == 0 && !interactive()) {
