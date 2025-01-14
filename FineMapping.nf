@@ -133,14 +133,11 @@ workflow FINEMAPPING {
     main:
         loci_bed_collated_ch = loci_bed_ch.flatMap { chromosome, files -> files.collate(loci_per_job).collect { chunk -> [chromosome, chunk] } }
 
-        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch).flatten()
+        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch).flatten().collect()
 
-        // Combine finemapped channel into a single file
-        finemapped_ch = finemapped_split_ch.collectFile(name: 'finemapped.tsv', skip: 1, keepHeader: true).collect()
         // Write out results
-        ExportResults(finemapped_ch)
-    emit:
-      finemapped = finemapped_ch
+        ExportResults(finemapped_split_ch)
+
 }
 
 workflow {

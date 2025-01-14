@@ -80,7 +80,7 @@ process ExportResults {
   shell:
       '''
       filter_finemapped_results.py \
-      -i !{finemapped} \
+      -i !{finemapped.join(" ")} \
       -s no_filter \
       -o finemapped.results.tsv
       '''
