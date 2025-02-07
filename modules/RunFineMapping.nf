@@ -127,6 +127,62 @@ process RunCarmaFineMapping {
 }
 
 
+process RunFineMappingOnCalculatedLd {
+    //scratch true // Needs to be set to true!
+    scratch '$TMPDIR'
+    publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
+    container null
+
+    beforeScript "ml R/4.4.1-gfbf-2023b; ml GSL/2.7-GCC-13.2.0"
+
+    input:
+    path empirical, stageAs: 'empirical'
+        path permuted, stageAs: 'permuted'
+        path variantReference
+        path uncorrelatedGenes
+        tuple val(chromosome), path(bedFile)
+        val ld_type
+        val max_i2
+
+    output:
+        path "finemapped.*.tsv"
+
+    shell:
+    '''
+    mkdir tmp_empirical
+        mkdir tmp_permuted
+
+        # Get set of unique genes to use in permuted analysis
+        cat !{uncorrelatedGenes} | sort | uniq > unique_genes_permuted.txt
+
+        # Get set of genes to use in empirical analysis
+        cat !{bedFile.join(" ")} > "all_loci.bed"
+        awk -F'\t' 'BEGIN {OFS = FS} {print $4}' "all_loci.bed" | sort | uniq > unique_genes_empirical.txt
+
+        # Need to add -L to cp command when running on a compute nodes scratch space
+        while read gene; do
+          cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
+        done <unique_genes_empirical.txt
+
+        # Need to add -L to cp command when running on a compute nodes scratch space
+        cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
+
+        run_carma_over_loci.R \
+          --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
+          --empirical tmp_empirical \
+          --variant-reference !{variantReference} \
+          --uncorrelated-genes unique_genes_permuted.txt \
+          --bed-files !{bedFile.join(" ")} \
+          --ld-type !{ld_type} \
+          --max-i2 !{max_i2}
+
+        rm -r tmp_empirical/
+        rm -r tmp_permuted/
+        '''
+}
+
+
+
 process ExportResults {
   publishDir "${params.output}/finemapped", mode: 'move', overwrite: true
 

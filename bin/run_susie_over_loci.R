@@ -42,7 +42,7 @@ parser$add_argument(
 
 parser$add_argument(
   "--ld-type",
-  required = TRUE, 
+  required = TRUE,
   choices=c("gene-set", "pcs", "dosages"),
   help = "Type of LD"
 )
@@ -165,7 +165,7 @@ get_ld_matrix_alt <- function(permuted_dataset, variant_index_start, variant_ind
   return(ld_matrix)
 }
 
-# Extract locus as data table
+# Calculate ld for locus
 get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_end) {
   z_score_dt <- permuted_dataset %>%
     filter(between(variant_index, variant_index_start, variant_index_end)) %>%
@@ -242,7 +242,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     gene_summary_stats <- empirical_dataset %>%
       filter(phenotype == gene, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
       as.data.table()
-    
+
     sample_size_threshold <- max(gene_summary_stats$sample_size) * min_sample_size_prop
     gene_summary_stats <- gene_summary_stats %>%
       filter(sample_size >= sample_size_threshold, i_squared <= max_i_squared)
@@ -261,7 +261,8 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     gene_summary_stats <- gene_summary_stats[gene_summary_stats$variant_index %in% variant_order_filtered, ]
     print(gene_summary_stats)
     # Do fine-mapping
-    if(all(gene_summary_stats$variant_index == variant_order_filtered) & !dry_run){
+    if(nrow(gene_summary_stats) > 0 & all(gene_summary_stats$variant_index == variant_order_filtered) & !dry_run){
+      nCS = 10
 
       estimated_res_var = T
       fitted_rss2 <- tryCatch({
@@ -326,8 +327,8 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
 
     if (debug != FALSE & debug == 'RSparsePro') {
       print("Writing RSparsePro tables")
-      debug_table <- gene_summary_stats %>% 
-        mutate(Z = beta / standard_error, P=2*pnorm(q=abs(Z), lower.tail=FALSE)) %>% 
+      debug_table <- gene_summary_stats %>%
+        mutate(Z = beta / standard_error, P=2*pnorm(q=abs(Z), lower.tail=FALSE)) %>%
         rename(RSID = variant_index) %>%
         inner_join(variant_reference, by = c("RSID"="variant_index"))
       fwrite(debug_table, sprintf("summary_stats_%s.txt", gene), sep="\t", col.names=T, row.names=F, quote=F)
@@ -388,7 +389,7 @@ main <- function(argv=NULL) {
   normalize_sumstats <- !args$no_adjust_stats
   min_sample_size_prop <- args$min_n_prop
   max_i_squared <- args$max_i2
- 
+
   dry_run <- args$dry_run
   debug <- args$debug
 
@@ -408,13 +409,13 @@ main <- function(argv=NULL) {
     message("Opened dosage LD parquet")
     ld_func <- function(variant_index_start, variant_index_end) {
       message(sprintf("Calculating LD for %s-%s", variant_index_start, variant_index_end))
-      dosages_mat <- dosages %>% 
+      dosages_mat <- dosages %>%
         filter(between(variant_index, variant_index_start, variant_index_end)) %>%
         collect() %>% as.data.table() %>% as.matrix(rownames='variant_index')
       message("Collecting matrix done!")
       message(dim(dosages_mat))
       str(dosages_mat)
-      
+
       dosages_mat <- dosages_mat - rowMeans(dosages_mat)
       # Standardize each variable
       dosages_mat <- dosages_mat / sqrt(rowSums(dosages_mat^2))

@@ -7,7 +7,7 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { AnnotateSignificantVariants; ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
-include { RunFineMappingOnCalculatedLd; ; RunCarmaFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
+include { RunFineMappingOnCalculatedLd; RunFineMappingOnCalculatedLd; RunCarmaFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 
 def helpmessage() {
@@ -148,6 +148,8 @@ workflow FINEMAPPING {
           finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
         } else if (model == "carma") {
           finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
+        } else if (model == "rsparsepro") {
+          finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
         } else {
           error "Unsupported model: ${model}"
         }
