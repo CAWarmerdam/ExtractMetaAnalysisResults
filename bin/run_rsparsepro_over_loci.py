@@ -121,9 +121,9 @@ def finemap_locus(
         gene_summary_stats = pq.ParquetDataset(
             empirical_dataset,
             filters=[[
-                ("phenotype" == gene),
-                ("variant_index" >= gene_variant_index_start),
-                ("variant_index" <= gene_variant_index_end)]]).read().to_pandas()
+                ("phenotype", "==", gene),
+                ("variant_index", ">=", gene_variant_index_start),
+                ("variant_index", "<=", gene_variant_index_end)]]).read().to_pandas()
 
         # Apply sample size filtering
         sample_size_threshold = gene_summary_stats["sample_size"].max() * min_sample_size_prop

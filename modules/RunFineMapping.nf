@@ -21,7 +21,7 @@ process UncorrelatedGenes {
         """
 }
 
-process RunFineMappingOnCalculatedLd {
+process RunSusieFineMapping {
     //scratch true // Needs to be set to true!
     scratch '$TMPDIR'
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
@@ -127,13 +127,10 @@ process RunCarmaFineMapping {
 }
 
 
-process RunFineMappingOnCalculatedLd {
+process RunRSparseProFineMapping {
     //scratch true // Needs to be set to true!
     scratch '$TMPDIR'
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
-    container null
-
-    beforeScript "ml R/4.4.1-gfbf-2023b; ml GSL/2.7-GCC-13.2.0"
 
     input:
     path empirical, stageAs: 'empirical'
@@ -149,7 +146,7 @@ process RunFineMappingOnCalculatedLd {
 
     shell:
     '''
-    mkdir tmp_empirical
+        mkdir tmp_empirical
         mkdir tmp_permuted
 
         # Get set of unique genes to use in permuted analysis
@@ -167,7 +164,7 @@ process RunFineMappingOnCalculatedLd {
         # Need to add -L to cp command when running on a compute nodes scratch space
         cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
 
-        run_carma_over_loci.R \
+        run_rsparsepro_over_loci.py \
           --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
           --empirical tmp_empirical \
           --variant-reference !{variantReference} \

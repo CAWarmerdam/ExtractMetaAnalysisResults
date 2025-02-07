@@ -7,7 +7,7 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { AnnotateSignificantVariants; ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
-include { RunFineMappingOnCalculatedLd; RunFineMappingOnCalculatedLd; RunCarmaFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
+include { RunSusieFineMapping; RunRSparseProFineMapping; RunCarmaFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 
 def helpmessage() {
@@ -45,6 +45,7 @@ Mandatory arguments:
 params.inclusion_step_output = 'NO_FILE'
 params.max_i2 = 100
 params.window_mb = 3
+params.adjust_sumstats = 'yes'
 params.model = "SuSiE"
 
 if (params.help){
@@ -58,6 +59,7 @@ chromosomes = params.chromosome ? [params.chromosome.toString()] : (1..22).colle
 ld_type = params.ld_type
 max_i2 = params.max_i2
 window_mb = params.window_mb
+no_adjust_sumstats = params.adjust_sumstats == 'no'
 model = params.model.toLowerCase()
 
 //Default parameters
@@ -139,17 +141,18 @@ workflow FINEMAPPING {
         loci_per_job
         ld_type
         max_i2
+        no_adjust_sumstats
         model
 
     main:
         loci_bed_collated_ch = loci_bed_ch.flatMap { chromosome, files -> files.collate(loci_per_job).collect { chunk -> [chromosome, chunk] } }
 
         if (model == "susie") {
-          finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
+          finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, no_adjust_sumstats).flatten().collect()
         } else if (model == "carma") {
-          finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
+          finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, no_adjust_sumstats).flatten().collect()
         } else if (model == "rsparsepro") {
-          finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
+          finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, no_adjust_sumstats).flatten().collect()
         } else {
           error "Unsupported model: ${model}"
         }
@@ -170,7 +173,7 @@ workflow {
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        uncorrelated_genes_ch.collect(), LOCI.out.loci, loci_per_job, ld_type, max_i2, model)
+        uncorrelated_genes_ch.collect(), LOCI.out.loci, loci_per_job, ld_type, max_i2, no_adjust_sumstats, model)
 }
 
 workflow.onComplete {
