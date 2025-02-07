@@ -7,7 +7,7 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { AnnotateSignificantVariants; ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
-include { RunFineMappingOnCalculatedLd; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
+include { RunFineMappingOnCalculatedLd; ; RunCarmaFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 
 def helpmessage() {
@@ -43,6 +43,9 @@ Mandatory arguments:
 }
 
 params.inclusion_step_output = 'NO_FILE'
+params.max_i2 = 100
+params.window_mb = 3
+params.model = "SuSiE"
 
 if (params.help){
     helpmessage()
@@ -52,11 +55,15 @@ if (params.help){
 
 // Define list of chromosomes to analyse
 chromosomes = params.chromosome ? [params.chromosome.toString()] : (1..22).collect { it.toString() }
+ld_type = params.ld_type
+max_i2 = params.max_i2
+window_mb = params.window_mb
+model = params.model.toLowerCase()
 
 //Default parameters
 Channel.fromPath(params.significant).collect().set { significant_subset_ch }
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
-Channel.fromPath(params.permuted).collect().set { permuted_parquet_ch }
+Channel.fromPath(params.ld).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
 Channel.fromPath(params.uncorrelated_genes).collect().set { uncorrelated_genes_ch }
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
@@ -80,7 +87,7 @@ summary['Config Profile']                           = workflow.profile
 summary['Container Engine']                         = workflow.containerEngine
 if(workflow.containerEngine) summary['Container']   = workflow.container
 summary['Empirical eQTLs']                          = params.empirical
-summary['Permuted eQTLs']                           = params.permuted
+summary['LD data']                                  = params.ld
 summary['Significant eQTLs']                        = params.significant
 summary['Genome reference']                         = params.genome_reference
 summary['Variant reference']                        = params.variant_reference
@@ -96,6 +103,7 @@ workflow LOCI {
         significant_subset_ch
         variant_reference_ch
         genome_ref_ch
+        window_mb
 
     main:
         // Annotate significant variants with bp positions
@@ -116,7 +124,7 @@ workflow LOCI {
         // Each bed file has the following columns: chr, start, end, name.
         // Where, each row is defined by a significant lead variant, with a 1Mb base pair window around the lead variant
         // The highest end pos must never be greater than the lowest start pos + 5Mb
-        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch)
+        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch, window_mb)
     emit:
         loci = loci_ch
 }
@@ -129,11 +137,20 @@ workflow FINEMAPPING {
         uncorrelated_genes_ch
         loci_bed_ch
         loci_per_job
+        ld_type
+        max_i2
+        model
 
     main:
         loci_bed_collated_ch = loci_bed_ch.flatMap { chromosome, files -> files.collate(loci_per_job).collect { chunk -> [chromosome, chunk] } }
 
-        finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch).flatten().collect()
+        if (model == "susie") {
+          finemapped_split_ch = RunFineMappingOnCalculatedLd(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
+        } else if (model == "carma") {
+          finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2).flatten().collect()
+        } else {
+          error "Unsupported model: ${model}"
+        }
 
         // Write out results
         ExportResults(finemapped_split_ch)
@@ -146,12 +163,12 @@ workflow {
 
     // Define loci to do finemapping for
     LOCI(
-        significant_subset_ch,variant_reference_ch,genome_ref_ch)
+        significant_subset_ch,variant_reference_ch,genome_ref_ch,window_mb)
 
     // Do finemapping
     FINEMAPPING(
         empirical_parquet_ch,permuted_parquet_ch,variant_reference_ch,
-        uncorrelated_genes_ch.collect(), LOCI.out.loci, loci_per_job)
+        uncorrelated_genes_ch.collect(), LOCI.out.loci, loci_per_job, ld_type, max_i2, model)
 }
 
 workflow.onComplete {
