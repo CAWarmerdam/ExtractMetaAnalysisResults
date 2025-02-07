@@ -47,7 +47,12 @@ import argparse
 import pandas as pd
 
 def main(args):
-  df = pd.read_csv(args.inputPath, sep="\t")
+  df = pd.DataFrame()
+  for path in args.inputPath:
+    if len(df) == 0:
+      df = pd.read_csv(path, sep="\t")
+    else:
+      df = pd.concat([df, pd.read_csv(path, sep="\t")], sort=True)
 
   if args.strategy == 'no_filter':
     pass
@@ -60,7 +65,7 @@ def main(args):
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
-  parser.add_argument("-i", "--inputPath", type=str, required=True, help="Help goes here") 
+  parser.add_argument("-i", "--inputPath", type=str, required=True, help="Help goes here", nargs='+') 
   parser.add_argument("-s", "--strategy", type=str, required=True, help="Help goes here")
   parser.add_argument("-o", "--outputPath", type=str, required=True, help="Help goes here")
   args = parser.parse_args()
