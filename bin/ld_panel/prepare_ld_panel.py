@@ -66,14 +66,14 @@ def t_to_cor(t_stats, df):
     return r
 
 
-def get_variant_indices(reference_file, chromosome):
+def get_variant_indices(reference_file, chromosome, min, max):
     """Get the min and max variant indices for a given chromosome."""
     variant_reference = pq.read_table(reference_file)
-    chromosome_data = variant_reference.filter(pa.compute.equal(variant_reference.column('chromosome'), chromosome))
-    return chromosome_data
+    chromosome_data = variant_reference.filter(pa.compute.equal(variant_reference.column('chromosome'), chromosome)).to_pandas()
+    return chromosome_data[np.logical_and(chromosome_data.variant_index >= min, chromosome_data.variant_index <= max)]
 
 
-def process_and_write_gene_data(dataset_folder, gene, min_index, max_index, parquet_writer):
+def process_and_write_gene_data(dataset_folder, gene, min_index, max_index):
     """Filter data for a gene, perform calculations, and write results to Parquet."""
     gene_file_path = os.path.join(dataset_folder, f"phenotype_{gene}.parquet")
     if not os.path.exists(gene_file_path):
@@ -86,15 +86,7 @@ def process_and_write_gene_data(dataset_folder, gene, min_index, max_index, parq
     t_stat = summary_stats['beta'] / summary_stats['standard_error']
     df = summary_stats['sample_size'] - 1
     rho = t_to_cor(t_stat, df)
-    # Generate new output table
-    result_table = pa.Table.from_pydict({
-        'gene': [gene] * summary_stats.shape[0],
-        'variant_index': summary_stats['variant_index'],
-        'calculation_result': rho
-    })
-
-    # Write results to the output folder
-    parquet_writer.write_table(result_table)
+    return summary_stats['variant_index'], rho
 
 
 # Main
@@ -108,22 +100,41 @@ def main(argv=None):
     parser.add_argument("--variant-reference", required=True, help="Path to the variant reference parquet file.")
     parser.add_argument("--output-folder", required=True, help="Output folder.")
     parser.add_argument("--chromosome", type=int, required=True, help="Chromosome number to process.")
+    parser.add_argument("--min-max", type=int, nargs=2, required=True, help="Variant index range to process")
     args = parser.parse_args()
 
     genes = load_genes(args.genes_file)
 
     k_variants = 10000
 
-    chr_variant_indices = get_variant_indices(args.variant_reference, args.chromosome)
-    chr_chunks = np.array_split(chr_variant_indices, np.ceil(chr_variant_indices.shape[0] / k_variants))
+    max_variant_index = args.min_max[1]
+    min_variant_index = args.min_max[0]
+    output_file = os.path.join(args.output_folder, f"chr={args.chromosome}", f"{min_variant_index}_{max_variant_index}.parquet")
 
-    output_file = os.path.join(args.output_folder, f"ld_panel_chr{args.chromosome}.parquet")
+    chr_variant_indices = get_variant_indices(args.variant_reference, args.chromosome, min_variant_index, max_variant_index)
+    chr_chunks = np.array_split(chr_variant_indices, np.ceil(chr_variant_indices.shape[0] / k_variants))
 
     os.makedirs(args.output_folder, exist_ok=True)
     parquet_writer = pq.ParquetWriter(output_file, PYARROW_SCHEMA_LD)
 
-    for gene in genes:
-        process_and_write_gene_data(args.dataset_folder, gene, min_index, max_index, parquet_writer)
+    for chr_chunk in chr_chunks:
+        result_table = None
+
+        min_index = chr_chunk.variant_index.min()
+        max_index = chr_chunk.variant_index.max()
+        for gene in genes:
+            variant_indices, rho = process_and_write_gene_data(args.dataset_folder, gene, min_index, max_index)
+
+            if not result_table:
+                result_table = pa.Table.from_pydict({
+                    'variant_index': variant_indices,
+                    gene: rho
+                })
+            else:
+                assert np.array_equal(result_table.column('variant_index').to_numpy(), variant_indices)
+                result_table.append_column(gene, pa.Array(rho))
+
+        parquet_writer.write_table(result_table)
 
     parquet_writer.close()
     return 0
