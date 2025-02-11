@@ -4,7 +4,6 @@
 process SplitVariantSet {
 
     input:
-        path variantSet
         path variantReference
         val chunks
 
@@ -15,7 +14,6 @@ process SplitVariantSet {
         """
         export PYTHONUNBUFFERED="1"
         ld_panel/split_variant_set.py \
-        --variant-set ${variantSet} \
         --variant-reference ${variantReference} \
         --chunks ${chunks} \
         --output chunks.txt
