@@ -5,6 +5,9 @@
  */
 nextflow.enable.dsl = 2
 
+// import modules
+include { SplitVariantSet; GenerateLdPanel } from './modules/LdPanel'
+
 def helpmessage() {
 
 log.info"""
