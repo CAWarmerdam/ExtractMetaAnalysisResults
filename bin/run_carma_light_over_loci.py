@@ -20,11 +20,11 @@ A copy of the GNU General Public License can be found in the LICENSE file in the
 root directory of this source tree. If not, see <https://www.gnu.org/licenses/>.
 """
 
-
 import sys
 import argparse
 import pandas as pd
 import pyarrow.parquet as pq
+import pyarrow.feather as ft
 import numpy as np
 import time
 import ld_utils
@@ -60,7 +60,12 @@ def finemap_locus(
     print(f"Time taken: {end_time - start_time} seconds")
 
     if debug == 'locus-wise':
-        ld_matrix.to_csv(f"LD_{locus_chromosome}_{locus_start}-{locus_end}.csv")
+        ld_matrix.to_csv(f"LD_{variant_index_start}-{variant_index_end}.csv")
+    elif debug == 'write-susie':
+        ft.write_feather(
+            pd.DataFrame(ld_matrix, index=variant_order, columns=variant_order),
+            ld_matrix.to_csv(f"LD_{variant_index_start}-{variant_index_end}.feather")
+        )
 
     # Fine-mapping the locus
     fine_mapping_results = list()
@@ -92,8 +97,10 @@ def finemap_locus(
         gene_summary_stats["Z"] = gene_summary_stats["beta"] / gene_summary_stats["standard_error"]
         # Normalize summary statistics
         if normalize_sumstats:
-            gene_summary_stats["beta"] = gene_summary_stats["Z"] / np.sqrt(gene_summary_stats["sample_size"] + gene_summary_stats["Z"]**2)
-            gene_summary_stats["standard_error"] = 1 / np.sqrt(gene_summary_stats["sample_size"] + gene_summary_stats["Z"]**2)
+            gene_summary_stats["beta"] = gene_summary_stats["Z"] / np.sqrt(
+                gene_summary_stats["sample_size"] + gene_summary_stats["Z"] ** 2)
+            gene_summary_stats["standard_error"] = 1 / np.sqrt(
+                gene_summary_stats["sample_size"] + gene_summary_stats["Z"] ** 2)
 
         # Filter variant order
         variant_order_filtered = [v for v in variant_order if v in gene_summary_stats["variant_index"].values]
@@ -103,7 +110,8 @@ def finemap_locus(
         print(gene_summary_stats)
 
         # Perform fine-mapping if not a dry run
-        if len(gene_summary_stats) > 0 and all(gene_summary_stats["variant_index"] == variant_order_filtered) and not dry_run:
+        if len(gene_summary_stats) > 0 and all(
+                gene_summary_stats["variant_index"] == variant_order_filtered) and not dry_run:
             # Fine-mapping step (to be implemented)
             ld_variant_indices = np.array([variant_indices[variant_name] for variant_name in variant_order_filtered])
             carma_out = carma_light.CARMA_spike_slab_noEM(
@@ -128,11 +136,15 @@ def main(argv=None):
     parser.add_argument("--variant-reference", required=True, help="Path to the variant reference file.")
     parser.add_argument("--uncorrelated-genes", required=False, help="File containing uncorrelated genes.")
     parser.add_argument("--max-i2", required=False, default=40, type=float, help="Maximum i2")
-    parser.add_argument("--min-n-prop", required=False, default=0.8, type=float, help="Minimum sample size proportion compared to maximum in locus")
-    parser.add_argument("--no-adjust-stats", required=False, action='store_true', help="Flag to disable adjusting betas and standard errors for sample size")
+    parser.add_argument("--min-n-prop", required=False, default=0.8, type=float,
+                        help="Minimum sample size proportion compared to maximum in locus")
+    parser.add_argument("--no-adjust-stats", required=False, action='store_true',
+                        help="Flag to disable adjusting betas and standard errors for sample size")
     parser.add_argument("--bed-files", required=True, nargs='+', help="Space-separated list of BED files.")
-    parser.add_argument("--debug", required=False, default='off', help="Enables debugging mode.", choices=['off', 'locus-wise'])
-    parser.add_argument("--dry-run", required=False, action='store_true', help="Runs code without actually running fine-mapping")
+    parser.add_argument("--debug", required=False, default='off', help="Enables debugging mode.",
+                        choices=['off', 'locus-wise'])
+    parser.add_argument("--dry-run", required=False, action='store_true',
+                        help="Runs code without actually running fine-mapping")
 
     args = parser.parse_args()
 
@@ -174,7 +186,8 @@ def main(argv=None):
 
     for bed_file in args.bed_files:
         locus_bed = pd.read_csv(bed_file, sep="\t", names=["chromosome", "start", "end", "gene", "cluster"])
-        print(f"Starting finemapping in {locus_bed['chromosome'].iloc[0]}:{locus_bed['start'].min()}-{locus_bed['end'].max()} ({len(locus_bed)} genes)")
+        print(
+            f"Starting finemapping in {locus_bed['chromosome'].iloc[0]}:{locus_bed['start'].min()}-{locus_bed['end'].max()} ({len(locus_bed)} genes)")
 
         fine_mapping_output = finemap_locus(
             empirical_dataset=empirical_dataset,
@@ -191,11 +204,18 @@ def main(argv=None):
         fine_mapping_results_per_locus.append(fine_mapping_output)
 
     # Combine results
-    combined_results = pd.concat(fine_mapping_results_per_locus, ignore_index=True) if fine_mapping_results_per_locus else None
+    combined_results = pd.concat(
+        fine_mapping_results_per_locus,
+        ignore_index=True) if fine_mapping_results_per_locus else None
 
     # Save results
     if not dry_run and combined_results is not None:
-        combined_results.to_csv("finemapped.results.tsv", sep="\t", index=False)
+        combined_results.to_csv("carma.results.tsv", sep="\t", index=False)
+    if debug == 'write-susie':
+        ft.write_feather(
+            combined_results[~combined_results.outliers],
+            f"susie_input.feather"
+        )
 
 
 if __name__ == "__main__":
