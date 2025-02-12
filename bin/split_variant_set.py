@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Created:      04/12/2024
 Author:       C.A. (Robert) Warmerdam
@@ -95,7 +97,7 @@ def main(argv=None):
     # Process input
     parser = argparse.ArgumentParser(description="Split variant reference into chunks.")
     parser.add_argument("--variant-reference", required=True, help="Path to the variant reference parquet file.")
-    parser.add_argument("--chunks", required=True, help="Number of chunks")
+    parser.add_argument("--chunks", required=True, type=int, help="Number of chunks")
     parser.add_argument("--output", required=True, help="Output file")
     args = parser.parse_args()
 

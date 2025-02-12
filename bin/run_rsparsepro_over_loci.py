@@ -165,6 +165,7 @@ def finemap_locus(
             gene_summary_stats['pip'] = PIP
             gene_summary_stats['z_estimated'] = ztilde
             gene_summary_stats['cs'] = 0
+            print(f'The maximum Z score in the window: {gene_summary_stats["Z"].max()}')
             for e in eff:
                 mcs_idx = [gene_summary_stats['variant_index'][j] for j in eff[e]]
                 print(f'The {e}-th effect group contains effective variants:')

@@ -154,7 +154,7 @@ class QtlResultProcessor:
             .intersection(self.column_mapping.keys()))
         print("Columns to add: {}".format(cols_to_add))
         self.include_cols(cols_to_add)
-        print("Added columns. Table now has {} columns".format(self._df.shape[1]))        
+        print("Added columns. Table now has {} columns".format(self._df.shape[1]))
         if self.n_filter is not None:
             self._df = self._df.loc[self.n_filter.apply(self._df.sample_size)]
             print("Filtered on samle size. {} rows remain".format(self._df.shape[0]))
