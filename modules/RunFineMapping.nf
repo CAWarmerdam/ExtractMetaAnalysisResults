@@ -34,6 +34,8 @@ process RunSusieFineMapping {
         tuple val(chromosome), path(bedFile)
         val ld_type
         val max_i2
+        val min_n_prop
+        val no_adjust_sumstats
 
     output:
         path "finemapped.*.tsv"
@@ -65,7 +67,9 @@ process RunSusieFineMapping {
           --uncorrelated-genes unique_genes_permuted.txt \
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
-          --max-i2 !{max_i2}
+          --max-i2 !{max_i2} \
+          --min-n-prop !{min_n_prop} \
+          !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         rm -r tmp_empirical/
         rm -r tmp_permuted/
@@ -88,6 +92,7 @@ process RunCarmaFineMapping {
         tuple val(chromosome), path(bedFile)
         val ld_type
         val max_i2
+        val no_adjust_sumstats
 
     output:
         path "finemapped.*.tsv"
@@ -119,7 +124,8 @@ process RunCarmaFineMapping {
           --uncorrelated-genes unique_genes_permuted.txt \
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
-          --max-i2 !{max_i2}
+          --max-i2 !{max_i2} \
+          !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         rm -r tmp_empirical/
         rm -r tmp_permuted/
@@ -133,13 +139,14 @@ process RunRSparseProFineMapping {
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
     input:
-    path empirical, stageAs: 'empirical'
+        path empirical, stageAs: 'empirical'
         path permuted, stageAs: 'permuted'
         path variantReference
         path uncorrelatedGenes
         tuple val(chromosome), path(bedFile)
         val ld_type
         val max_i2
+        val no_adjust_sumstats
 
     output:
         path "finemapped.*.tsv"
@@ -164,6 +171,8 @@ process RunRSparseProFineMapping {
         # Need to add -L to cp command when running on a compute nodes scratch space
         cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
 
+        export PYTHONUNBUFFERED='1'
+
         run_rsparsepro_over_loci.py \
           --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
           --empirical tmp_empirical \
@@ -171,7 +180,8 @@ process RunRSparseProFineMapping {
           --uncorrelated-genes unique_genes_permuted.txt \
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
-          --max-i2 !{max_i2}
+          --max-i2 !{max_i2} \
+          !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         rm -r tmp_empirical/
         rm -r tmp_permuted/
