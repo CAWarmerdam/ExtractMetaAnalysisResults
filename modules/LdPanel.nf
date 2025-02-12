@@ -13,7 +13,7 @@ process SplitVariantSet {
     script:
         """
         export PYTHONUNBUFFERED="1"
-        ld_panel/split_variant_set.py \
+        split_variant_set.py \
         --variant-reference ${variantReference} \
         --chunks ${chunks} \
         --output chunks.txt
@@ -22,7 +22,7 @@ process SplitVariantSet {
 
 
 process GenerateLdPanel {
-    publishDir "${params.output}", mode: 'move', overwrite: true
+    publishDir "${params.output}", mode: 'move', overwrite: true, pattern: 'chr=${chromosome}/*.parquet'
 
     input:
         path parquetDataset
@@ -31,12 +31,12 @@ process GenerateLdPanel {
         tuple val(chromosome), val(min_variant_index), val(max_variant_index), val(chunk_nr)
 
     output:
-        path "chr*"
+        path "chr=${chromosome}/*parquet"
 
     script:
         """
         export PYTHONUNBUFFERED="1"
-        ld_panel/prepare_ld_panel.py \
+        prepare_ld_panel.py \
         --dataset-folder ${parquetDataset} \
         --genes-file ${ldGenes} \
         --variant-reference ${variantReference} \

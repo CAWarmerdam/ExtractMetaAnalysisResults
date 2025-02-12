@@ -92,6 +92,7 @@ process RunCarmaFineMapping {
         tuple val(chromosome), path(bedFile)
         val ld_type
         val max_i2
+        val min_n_prop
         val no_adjust_sumstats
 
     output:
@@ -125,6 +126,7 @@ process RunCarmaFineMapping {
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
           --max-i2 !{max_i2} \
+          --min-n-prop !{min_n_prop} \
           !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         rm -r tmp_empirical/
@@ -146,6 +148,7 @@ process RunRSparseProFineMapping {
         tuple val(chromosome), path(bedFile)
         val ld_type
         val max_i2
+        val min_n_prop
         val no_adjust_sumstats
 
     output:
@@ -181,6 +184,7 @@ process RunRSparseProFineMapping {
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
           --max-i2 !{max_i2} \
+          --min-n-prop !{min_n_prop} \
           !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         rm -r tmp_empirical/
@@ -202,6 +206,8 @@ process RunCarmaSusieFineMapping {
         tuple val(chromosome), path(bedFile)
         val ld_type
         val max_i2
+        val min_n_prop
+        val no_adjust_sumstats
 
     output:
         path "finemapped.*.tsv"
@@ -233,13 +239,14 @@ process RunCarmaSusieFineMapping {
           --uncorrelated-genes unique_genes_permuted.txt \
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
-          --max-i2 !{max_i2}
+          --max-i2 !{max_i2} \
+          --min-n-prop !{min_n_prop} \
+          !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         rm -r tmp_empirical/
         rm -r tmp_permuted/
         '''
 }
-
 
 
 

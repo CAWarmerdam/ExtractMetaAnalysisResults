@@ -48,12 +48,15 @@ if (params.help){
 
 // Define list of chromosomes to analyse
 chromosomes = params.chromosome ? [params.chromosome.toString()] : (1..22).collect { it.toString() }
+//chromosomes = [1,22]
+
+log.info(chromosomes)
 
 //Default parameters
 Channel.fromPath(params.dataset).collect().set { dataset_parquet_ch }
 Channel.fromPath(params.genes).collect().set { ld_genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
-Channel.from(chromosomes).map(chr -> [chr]).set { chromosome_ch }
+Channel.fromList(chromosomes).map( chr -> tuple(chr)).view().set { chromosome_ch }
 
 number_of_chunks=100
 
@@ -84,8 +87,7 @@ log.info "======================================================="
 
 workflow {
     // Buffer genes
-    variant_chunk_ch = SplitVariantSet(variant_reference_ch, number_of_chunks)
-        .splitCsv( header: true ).join(chromosome_ch).view()
+    variant_chunk_ch = SplitVariantSet(variant_reference_ch, number_of_chunks).splitCsv( header: false, skip: 1 ).combine(chromosome_ch, by: 0).view()
     GenerateLdPanel(dataset_parquet_ch, variant_reference_ch, ld_genes_ch, variant_chunk_ch)
 }
 
