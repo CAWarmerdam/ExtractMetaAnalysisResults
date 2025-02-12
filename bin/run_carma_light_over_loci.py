@@ -28,7 +28,7 @@ import pyarrow.parquet as pq
 import numpy as np
 import time
 import ld_utils
-import RSparsePro
+import carma_light
 
 
 def finemap_locus(
@@ -63,7 +63,7 @@ def finemap_locus(
         ld_matrix.to_csv(f"LD_{locus_chromosome}_{locus_start}-{locus_end}.csv")
 
     # Fine-mapping the locus
-    fine_mapping_results = []
+    fine_mapping_results = list()
 
     for gene, start, end in zip(locus_bed["gene"], locus_bed["start"], locus_bed["end"]):
         # Get variants in gene region
@@ -98,43 +98,20 @@ def finemap_locus(
         # Filter variant order
         variant_order_filtered = [v for v in variant_order if v in gene_summary_stats["variant_index"].values]
         gene_summary_stats = gene_summary_stats.set_index("variant_index").loc[variant_order_filtered].reset_index()
+        gene_summary_stats.outlier = False
 
         print(gene_summary_stats)
 
         # Perform fine-mapping if not a dry run
         if len(gene_summary_stats) > 0 and all(gene_summary_stats["variant_index"] == variant_order_filtered) and not dry_run:
             # Fine-mapping step (to be implemented)
-            maxite = 100
-            eps = 1e5
-            ubound = 100000
-            cthres = 0.95
-            eincre = 1.5
-            minldthres = 0.7
-            maxldthres = 0.2
-            varemax = 100.0
-            varemin = 1e-3
             ld_variant_indices = np.array([variant_indices[variant_name] for variant_name in variant_order_filtered])
-            eff, eff_gamma, eff_mu, PIP, ztilde = RSparsePro.adaptive_train(
-                gene_summary_stats["Z"],
-                ld_matrix[np.ix_(ld_variant_indices, ld_variant_indices)],
-                nCS, maxite, eps, ubound, cthres, minldthres, maxldthres, eincre, varemax, varemin)
-            gene_summary_stats['pip'] = PIP
-            gene_summary_stats['z_estimated'] = ztilde
-            gene_summary_stats['cs'] = 0
-            print(f'The maximum Z score in the window: {gene_summary_stats["Z"].max()}')
-            for e in eff:
-                mcs_idx = [gene_summary_stats['variant_index'][j] for j in eff[e]]
-                print(f'The {e}-th effect group contains effective variants:')
-                print(f'causal variants: {mcs_idx}')
-                print(f'variant probabilities for this effect group: {eff_gamma[e]}')
-                print(f'zscore for this effect group: {eff_mu[e]}\n')
-                gene_summary_stats.iloc[eff[e], gene_summary_stats.columns.get_loc('cs')] = e+1
-        else:
-            gene_summary_stats['pip'] = np.nan
-            gene_summary_stats['z_estimated'] = np.nan
-            gene_summary_stats['cs'] = np.nan
+            carma_out = carma_light.CARMA_spike_slab_noEM(
+                gene_summary_stats['Z'], ld_matrix[np.ix_(ld_variant_indices, ld_variant_indices)], all_iter=0)
+            outliers = carma_out["Outliers"]
 
-        fine_mapping_results.append(gene_summary_stats)
+            gene_summary_stats.iloc[outliers] = True
+            fine_mapping_results.append(gene_summary_stats)
 
     return pd.concat(fine_mapping_results, ignore_index=True) if fine_mapping_results else None
 

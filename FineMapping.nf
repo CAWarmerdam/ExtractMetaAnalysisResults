@@ -7,7 +7,7 @@ nextflow.enable.dsl = 2
 
 // import modules
 include { AnnotateSignificantVariants; ExtractSignificantResults; DefineFineMappingLoci } from './modules/CollectSignificantLoci'
-include { RunSusieFineMapping; RunRSparseProFineMapping; RunCarmaFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
+include { RunSusieFineMapping; RunRSparseProFineMapping; RunCarmaFineMapping; RunCarmaSusieFineMapping; UncorrelatedGenes; ExportResults } from './modules/RunFineMapping'
 include { GetUncorrelatedVariants } from './modules/UncorrelatedVariants'
 
 def helpmessage() {
@@ -155,6 +155,8 @@ workflow FINEMAPPING {
           finemapped_split_ch = RunSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
         } else if (model == "carma") {
           finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
+        } else if (model == "carma+susie") {
+          finemapped_split_ch = RunCarmaSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
         } else if (model == "rsparsepro") {
           finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
         } else {
