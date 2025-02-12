@@ -394,6 +394,7 @@ main <- function(argv=NULL) {
   debug <- args$debug
 
   # load in parquet with Robert's strategy
+  # Assume parquet dataset
   empirical_dataset <- open_dataset(sumstats_path)
 
   # Switched to new ld reference dataset files with just phenotypes, variant_indices, and rho values
@@ -421,6 +422,18 @@ main <- function(argv=NULL) {
       dosages_mat <- dosages_mat / sqrt(rowSums(dosages_mat^2))
       # Calculate correlations
       ld_matrix <- tcrossprod(dosages_mat)
+      return(ld_matrix)
+    }
+  } else if (ld_type == 'feather') {
+    ld_func <- function(variant_index_start, variant_index_end) {
+      message(sprintf("Reading LD for %s-%s", variant_index_start, variant_index_end))
+      ld_file <- file.path(
+        permuted_dataset_path,
+        sprintf("LD_%s-%s.feather", variant_index_start, variant_index_end))
+      message(sprintf("Reading from %s", ld_file))
+      ld_matrix <- arrow::read_feather(ld_file) %>%
+        as.matrix()
+      print(ld_matrix)
       return(ld_matrix)
     }
   }

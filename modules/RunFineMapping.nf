@@ -195,7 +195,8 @@ process RunRSparseProFineMapping {
 
 process RunCarmaSusieFineMapping {
     //scratch true // Needs to be set to true!
-    scratch '$TMPDIR'
+    // scratch '$TMPDIR'
+    scratch false
     publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
 
     input:
@@ -232,6 +233,8 @@ process RunCarmaSusieFineMapping {
         # Need to add -L to cp command when running on a compute nodes scratch space
         cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
 
+        export PYTHONUNBUFFERED='1'
+
         run_carma_light_over_loci.py \
           --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
           --empirical tmp_empirical \
@@ -239,6 +242,17 @@ process RunCarmaSusieFineMapping {
           --uncorrelated-genes unique_genes_permuted.txt \
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
+          --max-i2 !{max_i2} \
+          --min-n-prop !{min_n_prop} \
+          !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
+
+        run_susie_over_loci.R \
+          --ld . \
+          --ld-type feather
+          --empirical susie_input.feather \
+          --variant-reference !{variantReference} \
+          --uncorrelated-genes unique_genes_permuted.txt \
+          --bed-files !{bedFile.join(" ")} \
           --max-i2 !{max_i2} \
           --min-n-prop !{min_n_prop} \
           !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
