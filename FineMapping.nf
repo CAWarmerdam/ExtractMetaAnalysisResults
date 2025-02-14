@@ -49,7 +49,7 @@ params.window_mb = 3
 params.adjust_sumstats = 'yes'
 params.model = "SuSiE"
 params.loci_per_job = 1
-
+params.genes_per_locus = 20 // Split up loci if there are many genes involved
 if (params.help){
     helpmessage()
     exit 0
@@ -77,6 +77,7 @@ Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
 
 gene_chunk_size=200
 loci_per_job=params.loci_per_job // TODO: TMP, change back to 5
+genes_per_locus=params.genes_per_locus
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"
@@ -109,6 +110,7 @@ workflow LOCI {
         variant_reference_ch
         genome_ref_ch
         window_mb
+        genes_per_locus
 
     main:
         // Annotate significant variants with bp positions
@@ -129,7 +131,7 @@ workflow LOCI {
         // Each bed file has the following columns: chr, start, end, name.
         // Where, each row is defined by a significant lead variant, with a 1Mb base pair window around the lead variant
         // The highest end pos must never be greater than the lowest start pos + 5Mb
-        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch, window_mb)
+        loci_ch = DefineFineMappingLoci(significant_results_ch, genome_ref_ch, window_mb, genes_per_locus)
     emit:
         loci = loci_ch
 }
@@ -156,7 +158,7 @@ workflow FINEMAPPING {
         } else if (model == "carma") {
           finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
         } else if (model == "carma+susie") {
-          finemapped_split_ch = RunCarmaSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
+          finemapped_split_ch = RunCarmaSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).finemapped.flatten().collect()
         } else if (model == "rsparsepro") {
           finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
         } else {
@@ -174,7 +176,7 @@ workflow {
 
     // Define loci to do finemapping for
     LOCI(
-        significant_subset_ch,variant_reference_ch,genome_ref_ch,window_mb)
+        significant_subset_ch,variant_reference_ch,genome_ref_ch,window_mb,genes_per_locus)
 
     // Do finemapping
     FINEMAPPING(

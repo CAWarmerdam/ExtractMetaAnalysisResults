@@ -28,7 +28,7 @@ import pyarrow.feather as ft
 import numpy as np
 import time
 import ld_utils
-import carma_light
+from carma_gentropy import CARMA
 
 
 def finemap_locus(
@@ -64,7 +64,7 @@ def finemap_locus(
     elif debug == 'write-susie':
         ft.write_feather(
             pd.DataFrame(ld_matrix, index=variant_order, columns=variant_order),
-            ld_matrix.to_csv(f"LD_{variant_index_start}-{variant_index_end}.feather")
+            f"LD_{variant_index_start}-{variant_index_end}.feather"
         )
 
     # Fine-mapping the locus
@@ -105,7 +105,7 @@ def finemap_locus(
         # Filter variant order
         variant_order_filtered = [v for v in variant_order if v in gene_summary_stats["variant_index"].values]
         gene_summary_stats = gene_summary_stats.set_index("variant_index").loc[variant_order_filtered].reset_index()
-        gene_summary_stats.outlier = False
+        gene_summary_stats['outliers'] = False
 
         print(gene_summary_stats)
 
@@ -114,11 +114,13 @@ def finemap_locus(
                 gene_summary_stats["variant_index"] == variant_order_filtered) and not dry_run:
             # Fine-mapping step (to be implemented)
             ld_variant_indices = np.array([variant_indices[variant_name] for variant_name in variant_order_filtered])
-            carma_out = carma_light.CARMA_spike_slab_noEM(
-                gene_summary_stats['Z'], ld_matrix[np.ix_(ld_variant_indices, ld_variant_indices)], all_iter=0)
+            print(f"Starting CARMA outlier detection with {len(ld_variant_indices)} variants!")
+            carma_out = CARMA.CARMA_spike_slab_noEM(
+                gene_summary_stats['Z'], ld_matrix[np.ix_(ld_variant_indices, ld_variant_indices)], all_iter=1)
             outliers = carma_out["Outliers"]
+            print(f"Found {len(outliers)} outliers!")
 
-            gene_summary_stats.iloc[outliers] = True
+            gene_summary_stats.loc[np.array(outliers), ['outliers']] = True
             fine_mapping_results.append(gene_summary_stats)
 
     return pd.concat(fine_mapping_results, ignore_index=True) if fine_mapping_results else None
@@ -142,7 +144,7 @@ def main(argv=None):
                         help="Flag to disable adjusting betas and standard errors for sample size")
     parser.add_argument("--bed-files", required=True, nargs='+', help="Space-separated list of BED files.")
     parser.add_argument("--debug", required=False, default='off', help="Enables debugging mode.",
-                        choices=['off', 'locus-wise'])
+                        choices=['off', 'locus-wise', 'write-susie'])
     parser.add_argument("--dry-run", required=False, action='store_true',
                         help="Runs code without actually running fine-mapping")
 
@@ -185,7 +187,7 @@ def main(argv=None):
     fine_mapping_results_per_locus = []
 
     for bed_file in args.bed_files:
-        locus_bed = pd.read_csv(bed_file, sep="\t", names=["chromosome", "start", "end", "gene", "cluster"])
+        locus_bed = pd.read_csv(bed_file, sep="\t", names=["chromosome", "start", "end", "gene", "gene_cluster", "cluster"])
         print(
             f"Starting finemapping in {locus_bed['chromosome'].iloc[0]}:{locus_bed['start'].min()}-{locus_bed['end'].max()} ({len(locus_bed)} genes)")
 

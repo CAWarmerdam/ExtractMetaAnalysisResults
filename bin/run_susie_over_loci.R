@@ -43,7 +43,7 @@ parser$add_argument(
 parser$add_argument(
   "--ld-type",
   required = TRUE,
-  choices=c("gene-set", "pcs", "dosages"),
+  choices=c("gene-set", "pcs", "dosages", "feather"),
   help = "Type of LD"
 )
 
@@ -217,7 +217,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
   message("Starting to calculate LD...")
   start.time <- Sys.time()
   ld_matrix <- ld_func(variant_index_start, variant_index_end)
-  print(as_tibble(ld_matrix))
+  print(str(ld_matrix))
   variant_order <- rownames(ld_matrix)
   end.time <- Sys.time()
   time.taken <- end.time - start.time
@@ -241,11 +241,17 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
 
     gene_summary_stats <- empirical_dataset %>%
       filter(phenotype == gene, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
+      collect() %>%
       as.data.table()
+
+    print(gene_summary_stats)
+    message(sprintf("Input has %s variants", nrow(gene_summary_stats)))
 
     sample_size_threshold <- max(gene_summary_stats$sample_size) * min_sample_size_prop
     gene_summary_stats <- gene_summary_stats %>%
       filter(sample_size >= sample_size_threshold, i_squared <= max_i_squared)
+
+    message(sprintf("After filtering %s variants remaining", nrow(gene_summary_stats)))
 
     if (normalize_sumstats) {
       gene_summary_stats <- gene_summary_stats %>% mutate(
@@ -395,7 +401,9 @@ main <- function(argv=NULL) {
 
   # load in parquet with Robert's strategy
   # Assume parquet dataset
-  empirical_dataset <- open_dataset(sumstats_path)
+  ds_format = ifelse(str_ends(sumstats_path, fixed(".feather")), "feather", "parquet")
+  empirical_dataset <- open_dataset(sumstats_path, format=ds_format)
+  print(empirical_dataset)
 
   # Switched to new ld reference dataset files with just phenotypes, variant_indices, and rho values
   # Added filtering on uncorrelated genes, since the dataset is no longer prefiltered on uncorrelated genes 
@@ -432,14 +440,14 @@ main <- function(argv=NULL) {
         sprintf("LD_%s-%s.feather", variant_index_start, variant_index_end))
       message(sprintf("Reading from %s", ld_file))
       ld_matrix <- arrow::read_feather(ld_file) %>%
-        as.matrix()
-      print(ld_matrix)
+        as.data.table() %>%
+        as.matrix(rownames='__index_level_0__')
       return(ld_matrix)
     }
   }
 
   fine_mapping_results_per_locus <- mapply(function(bed_file) {
-    locus_bed <- fread(bed_file, col.names = c("chromosome", "start", "end", "gene", "cluster"))
+    locus_bed <- fread(bed_file, col.names = c("chromosome", "start", "end", "gene", "gene_cluster", "cluster"))
     message(sprintf("Starting finemapping in %s:%s-%s (%s genes)", locus_bed$chromosome[1], min(locus_bed$start), max(locus_bed$end), nrow(locus_bed)))
     # Assumes fine_mapping_output is some sort of data.frame/data.table or tibble
     fine_mapping_output <- finemap_locus(empirical_dataset=empirical_dataset,

@@ -79,10 +79,12 @@ process AnnotateSignificantVariants {
 }
 
 process DefineFineMappingLoci {
+    cache 'lenient'
     input:
         tuple val(chromosome), path(signVariants)
         path genomeRef
         val windowMb
+        val genes_per_locus
 
     output:
         tuple val(chromosome), path("finemapping_loci_*.bed")
@@ -104,7 +106,8 @@ process DefineFineMappingLoci {
 
         # Loop through the set of ENSG identifiers, merging the loci for each gene
         while read g; do
-            grep "$g" loci_3Mb_window.bed | bedtools sort | bedtools merge -c 4 -o distinct >> loci_3Mb_merged_per_gene.bed
+            grep "$g" loci_3Mb_window.bed | bedtools sort | bedtools merge -c 4 -o distinct > merged_$g.bed
+            bedtools cluster -i merged_$g.bed -d 2000000 >> loci_3Mb_merged_per_gene.bed
         done < unique_genes.txt
 
         # Potentially remove the HLA region
@@ -115,7 +118,7 @@ process DefineFineMappingLoci {
         bedtools sort -i loci_3Mb_merged_per_gene_filtered.bed > loci_3Mb_merged_per_gene_filtered_sorted.bed
 
         # Assign your windows to clusters.
-        assign_clusters.py loci_3Mb_merged_per_gene_filtered_sorted.bed 5000000 finemapping_loci
+        assign_clusters.py --input-file loci_3Mb_merged_per_gene_filtered_sorted.bed --max-distance 5000000 --output-prefix finemapping_loci --max-n !{genes_per_locus}
         '''
 }
 

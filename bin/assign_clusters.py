@@ -25,6 +25,8 @@ import os
 import sys
 import argparse
 
+import pandas as pd
+
 # Metadata
 __program__ = "CNV-caller"
 __author__ = "C.A. (Robert) Warmerdam"
@@ -44,28 +46,36 @@ __description__ = "{} is a program developed and maintained by {}. " \
 # Classes
 
 # Functions
-def assign_clusters(input_file, max_size):
+def assign_clusters(bed, max_size, max_n):
     current_cluster = []
     current_chrom = None
     current_start = None
 
-    with open(input_file, 'r') as f:
-        for line in f:
-            fields = line.strip().split('\t')
-            chrom, start, end, name = fields[:4]
-            start, end = int(start), int(end)
+    for name, line in bed.groupby(['name', 'gene_clusters']):
+        chrom = line["chromosome"].values[0]
+        start = line["start"].min()
+        end = line["end"].max()
+        name = line["name"].values[0]
+        start, end = int(start), int(end)
+        print(f"{chrom}:{start}-{end}: {name}")
+        print(line)
 
-            if chrom != current_chrom or end - current_start > max_size:
-                if current_cluster:
-                    yield current_cluster
-                current_cluster = [(chrom, start, end, name)]
+        if chrom != current_chrom or end - current_start > max_size or len(current_cluster) >= max_n:
+            if current_cluster:
+                yield pd.concat(current_cluster, axis=0)
+            print(f"Wrote cluster of {len(current_cluster)} genes")
+            print(current_cluster)
+            current_cluster = [line]
+            current_chrom = chrom
+            current_start = start
+        else:
+            current_cluster.append(line)
+            if current_chrom is None and current_start is None:
                 current_chrom = chrom
                 current_start = start
-            else:
-                current_cluster.append((chrom, start, end, name))
 
     if current_cluster:
-        yield current_cluster
+        yield pd.concat(current_cluster, axis=0)
 
 
 # Main
@@ -73,19 +83,32 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv
 
-    if len(argv) != 4:
-        print("Usage: python script.py input.bed max_cluster_size output_prefix")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Assign clusters to bed file based on maximum distances and a max number of genes")
 
-    input_file = sys.argv[1]
-    max_size = int(sys.argv[2])
-    output_prefix = sys.argv[3]
+    parser.add_argument("--input-file", type=str, help="Path to the input bed file.")
+    parser.add_argument("--max-distance", type=int, help="Maximum distance between first gene in cluster and last gene of cluster (including their gene bodies; from the TSS of gene 1 to the TES of gene n).")
+    parser.add_argument("--output-prefix", type=str, help="Prefix for the output files")
+    parser.add_argument("--max-n", type=int, help="Maximum number of items")
 
-    for i, cluster in enumerate(assign_clusters(input_file, max_size), 1):
-        with open("{}_cluster_{}.bed".format(output_prefix, i), 'w') as f:
-            for region in cluster:
-                f.write('\t'.join(map(str, [region[0], region[1], region[2], region[3], f"cluster_{i}"])) + '\n')
+    args = parser.parse_args(argv[1:])
 
+    input_file = args.input_file
+    max_d = args.max_distance
+    output_prefix = args.output_prefix
+    max_n = args.max_n
+
+    print(f"Input File: {input_file}")
+    print(f"Max Size: {max_d}")
+    print(f"Output Prefix: {output_prefix}")
+    print(f"Max N: {max_n}")
+
+    bed = pd.read_table(input_file, header=None, names=["chromosome", "start", "end", "name", "gene_clusters"])
+
+    cluster_df = assign_clusters(bed, max_d, max_n)
+
+    for i, cluster in enumerate(cluster_df, 1):
+        cluster["locus"] = i
+        cluster.to_csv("{}_cluster_{}.bed".format(output_prefix, i), sep='\t', header=False, index=False)
 
     return 0
 

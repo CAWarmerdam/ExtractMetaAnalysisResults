@@ -138,7 +138,7 @@ process RunCarmaFineMapping {
 process RunRSparseProFineMapping {
     //scratch true // Needs to be set to true!
     scratch '$TMPDIR'
-    publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
+    publishDir "${params.output}/workdir", mode: 'copy', overwrite: true
 
     input:
         path empirical, stageAs: 'empirical'
@@ -195,9 +195,9 @@ process RunRSparseProFineMapping {
 
 process RunCarmaSusieFineMapping {
     //scratch true // Needs to be set to true!
-    // scratch '$TMPDIR'
-    scratch false
-    publishDir "${params.output}/finemapped", mode: 'copy', overwrite: true
+    scratch '$TMPDIR'
+    // scratch false
+    publishDir "${params.output}/workdir", mode: 'copy', overwrite: true
 
     input:
     path empirical, stageAs: 'empirical'
@@ -211,7 +211,8 @@ process RunCarmaSusieFineMapping {
         val no_adjust_sumstats
 
     output:
-        path "finemapped.*.tsv"
+        path "finemapped.results.tsv", emit: finemapped
+        path "carma.results.tsv", emit: outliers
 
     shell:
     '''
@@ -244,11 +245,12 @@ process RunCarmaSusieFineMapping {
           --ld-type !{ld_type} \
           --max-i2 !{max_i2} \
           --min-n-prop !{min_n_prop} \
+          --debug 'write-susie' \
           !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
 
         run_susie_over_loci.R \
           --ld . \
-          --ld-type feather
+          --ld-type feather \
           --empirical susie_input.feather \
           --variant-reference !{variantReference} \
           --uncorrelated-genes unique_genes_permuted.txt \
