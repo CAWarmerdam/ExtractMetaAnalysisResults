@@ -26,6 +26,7 @@ process GenerateLdPanel {
 
     input:
         path parquetDataset
+        path pcaFolder
         path variantReference
         path ldGenes
         tuple val(chromosome), val(min_variant_index), val(max_variant_index), val(chunk_nr)
@@ -40,6 +41,7 @@ process GenerateLdPanel {
         --dataset-folder ${parquetDataset} \
         --genes-file ${ldGenes} \
         --variant-reference ${variantReference} \
+        --pca-prefix "${pcaFolder}/coexp_pca_10497_genes_" \
         --chromosome ${chromosome} \
         --min-max ${min_variant_index} ${max_variant_index} \
         --output-folder '.'
