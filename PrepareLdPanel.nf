@@ -54,6 +54,7 @@ log.info(chromosomes)
 
 //Default parameters
 Channel.fromPath(params.dataset).collect().set { dataset_parquet_ch }
+Channel.fromPath(params.pca_folder).collect().set { pca_folder_ch }
 Channel.fromPath(params.genes).collect().set { ld_genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromList(chromosomes).map( chr -> tuple(chr)).view().set { chromosome_ch }
@@ -88,7 +89,7 @@ log.info "======================================================="
 workflow {
     // Buffer genes
     variant_chunk_ch = SplitVariantSet(variant_reference_ch, number_of_chunks).splitCsv( header: false, skip: 1 ).combine(chromosome_ch, by: 0).view()
-    GenerateLdPanel(dataset_parquet_ch, variant_reference_ch, ld_genes_ch, variant_chunk_ch)
+    GenerateLdPanel(dataset_parquet_ch, pca_folder_ch, variant_reference_ch, ld_genes_ch, variant_chunk_ch)
 }
 
 workflow.onComplete {
