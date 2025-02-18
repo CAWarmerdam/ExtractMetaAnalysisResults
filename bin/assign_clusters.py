@@ -51,20 +51,25 @@ def assign_clusters(bed, max_size, max_n):
     current_chrom = None
     current_start = None
 
-    for name, line in bed.groupby(['name', 'gene_clusters']):
+    for name, line in bed.groupby(['name', 'gene_clusters'], sort=False):
         chrom = line["chromosome"].values[0]
         start = line["start"].min()
         end = line["end"].max()
         name = line["name"].values[0]
         start, end = int(start), int(end)
-        print(f"{chrom}:{start}-{end}: {name}")
+        print(f"{chrom}:{start}-{end}: {name}, {len(line['name'])} nearby loci")
         print(line)
 
-        if chrom != current_chrom or end - current_start > max_size or len(current_cluster) >= max_n:
+        if current_start is not None and (chrom != current_chrom or (end - current_start) > max_size or len(current_cluster) >= max_n):
+            print(chrom != current_chrom)
+            print((end - current_start) > max_size)
+            print(len(current_cluster) >= max_n)
+            print(f"Finalizing cluster")
             if current_cluster:
                 yield pd.concat(current_cluster, axis=0)
             print(f"Wrote cluster of {len(current_cluster)} genes")
             print(current_cluster)
+            print("---")
             current_cluster = [line]
             current_chrom = chrom
             current_start = start
@@ -103,6 +108,7 @@ def main(argv=None):
     print(f"Max N: {max_n}")
 
     bed = pd.read_table(input_file, header=None, names=["chromosome", "start", "end", "name", "gene_clusters"])
+    bed.sort_values('start', inplace=True)
 
     cluster_df = assign_clusters(bed, max_d, max_n)
 
