@@ -28,7 +28,7 @@ process RunSusieFineMapping {
 
     input:
         path empirical, stageAs: 'empirical'
-        path permuted, stageAs: 'permuted'
+        path ld_panel, stageAs: 'ld_panel'
         path variantReference
         path uncorrelatedGenes
         tuple val(chromosome), path(bedFile)
@@ -57,14 +57,11 @@ process RunSusieFineMapping {
           cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
-        # Need to add -L to cp command when running on a compute nodes scratch space
-        cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
-
         run_susie_over_loci.R \
-          --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
+          --ld !{ld_panel}/chr=!{chromosome} \
+          --uncorrelated-genes unique_genes_permuted.txt \
           --empirical tmp_empirical \
           --variant-reference !{variantReference} \
-          --uncorrelated-genes unique_genes_permuted.txt \
           --bed-files !{bedFile.join(" ")} \
           --ld-type !{ld_type} \
           --max-i2 !{max_i2} \

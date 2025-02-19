@@ -22,7 +22,7 @@ process SplitVariantSet {
 
 
 process GenerateLdPanel {
-    publishDir "${params.output}", mode: 'move', overwrite: true, pattern: 'chr=${chromosome}/*.parquet'
+    publishDir "${params.output}", mode: 'copy', overwrite: true, pattern: 'chr=*/*.parquet'
 
     input:
         path parquetDataset
@@ -41,7 +41,7 @@ process GenerateLdPanel {
         --dataset-folder ${parquetDataset} \
         --genes-file ${ldGenes} \
         --variant-reference ${variantReference} \
-        --pca-prefix "${pcaFolder}/coexp_pca_10497_genes_" \
+        --pca-prefix "${pcaFolder}/coexp_pca_10496_genes_pruned" \
         --chromosome ${chromosome} \
         --min-max ${min_variant_index} ${max_variant_index} \
         --output-folder '.'

@@ -59,7 +59,7 @@ Channel.fromPath(params.genes).collect().set { ld_genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromList(chromosomes).map( chr -> tuple(chr)).view().set { chromosome_ch }
 
-number_of_chunks=100
+number_of_chunks=200
 
 log.info """=======================================================
 HASE output analyzer v${workflow.manifest.version}"

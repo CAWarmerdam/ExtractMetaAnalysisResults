@@ -165,6 +165,28 @@ get_ld_matrix_alt <- function(permuted_dataset, variant_index_start, variant_ind
   return(ld_matrix)
 }
 
+# Extract locus as data table
+get_ld_matrix_wide <- function(permuted_dataset, variant_index_start, variant_index_end) {
+  rho_mat <- permuted_dataset %>%
+    filter(between(variant_index, variant_index_start, variant_index_end)) %>%
+    collect() %>% as.data.table() %>%
+    as.matrix(rownames=1)
+
+  start.time <- Sys.time()
+
+  rho_mat <- rho_mat - rowMeans(rho_mat)
+  # Standardize each variable
+  rho_mat <- rho_mat / sqrt(rowSums(rho_mat^2))
+  # Calculate correlations
+  ld_matrix <- tcrossprod(rho_mat)
+
+  end.time <- Sys.time()
+  time.taken <- end.time - start.time
+
+  print(time.taken)
+  return(ld_matrix)
+}
+
 # Calculate ld for locus
 get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_end) {
   z_score_dt <- permuted_dataset %>%
@@ -254,11 +276,15 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     message(sprintf("After filtering %s variants remaining", nrow(gene_summary_stats)))
 
     if (normalize_sumstats) {
+      message("Normalising effect sizes...") 
+
+      min_sample_size <- min(gene_summary_stats %>% pull(sample_size))
+
       gene_summary_stats <- gene_summary_stats %>% mutate(
         Z = beta / standard_error,
         beta = Z / sqrt(sample_size + Z^2),
-        standard_error = 1 / sqrt(sample_size + Z^2)
-      )
+        standard_error = 1 / sqrt(min_sample_size + Z^2),
+        Z = beta / standard_error)
     }
 
     variant_order_filtered <- variant_order[variant_order %in% gene_summary_stats$variant_index]
@@ -408,11 +434,17 @@ main <- function(argv=NULL) {
   # Switched to new ld reference dataset files with just phenotypes, variant_indices, and rho values
   # Added filtering on uncorrelated genes, since the dataset is no longer prefiltered on uncorrelated genes 
   # (the entire set of permuted genes is in this dataset)
-  if (ld_type == 'gene-set') {
+  if (ld_type == 'gene-set' && !is.null(args$uncorrelated_genes)) {
+    uncorrelated_genes <- fread(args$uncorrelated_genes, header=F)$V1
     permuted_dataset <- arrow::open_dataset(permuted_dataset_path) %>% filter(phenotype %in% uncorrelated_genes)
     ld_func <- function(variant_index_start, variant_index_end) {
       return(get_ld_matrix_alt(permuted_dataset, variant_index_start, variant_index_end))
     }
+  } else if (ld_type == 'pcs') {
+    permuted_dataset <- arrow::open_dataset(permuted_dataset_path)
+    ld_func <- function(variant_index_start, variant_index_end) {
+      return(get_ld_matrix_wide(permuted_dataset, variant_index_start, variant_index_end))
+    } 
   } else if (ld_type == 'dosages') {
     dosages <- arrow::open_dataset(permuted_dataset_path)
     message("Opened dosage LD parquet")

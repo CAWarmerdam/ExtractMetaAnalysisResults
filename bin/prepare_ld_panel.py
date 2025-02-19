@@ -121,10 +121,10 @@ class PCAProjector:
 
     @classmethod
     def read_from_txt(cls, gene_deviations_path, gene_centers_path, eigenvalues_path, eigenvector_path):
-        eigenvectors = pd.read_csv(eigenvector_path)
-        eigenvalues = pd.read_csv(eigenvalues_path, index_col="component").squeeze(axis=1)
-        gene_centers = pd.read_csv(gene_centers_path, index_col="gene").squeeze(axis=1)
-        gene_deviations = pd.read_csv(gene_deviations_path, index_col="gene").squeeze(axis=1)
+        eigenvectors = pd.read_csv(eigenvector_path, sep="\t", index_col="gene")
+        eigenvalues = pd.read_csv(eigenvalues_path, index_col="component", sep="\t").squeeze(axis=1)
+        gene_centers = pd.read_csv(gene_centers_path, index_col="gene", sep="\t").squeeze(axis=1)
+        gene_deviations = pd.read_csv(gene_deviations_path, index_col="gene", sep="\t").squeeze(axis=1)
         return cls(eigenvectors, eigenvalues, gene_centers, gene_deviations)
 
 
@@ -151,6 +151,8 @@ def get_variant_indices(reference_file, chromosome, min, max):
 def process_and_write_gene_data(dataset_folder, gene, min_index, max_index):
     """Filter data for a gene, perform calculations, and write results to Parquet."""
     gene_file_paths = glob.glob(os.path.join(dataset_folder, f"phenotype={gene}/*.parquet"))
+    if len(gene_file_paths) != 1:
+        print(gene_file_paths)
     assert len(gene_file_paths) == 1
     gene_file_path = gene_file_paths[0]
     if not os.path.exists(gene_file_path):
@@ -201,7 +203,7 @@ def make_ld_panel(dataset_folder, chr_chunks, genes, n_genes, output_file, pca_p
 
 
 def make_ld_panel_pca(dataset_folder, chr_chunks, genes, output_file, pca_projector):
-    pyarrow_ld_schema = pa.schema([("variant_index", pa.int64())] + [(gene_id, pa.float64()) for gene_id in genes])
+    pyarrow_ld_schema = pa.schema([("variant_index", pa.int64())] + [(id, pa.float64()) for id in pca_projector.eigenvectors.columns])
     parquet_writer = pq.ParquetWriter(output_file, pyarrow_ld_schema)
     n_genes = len(genes)
     print(f"Nr of chunks: {len(chr_chunks)}")
@@ -238,6 +240,8 @@ def make_ld_panel_pca(dataset_folder, chr_chunks, genes, output_file, pca_projec
         # Convert to Pandas DataFrame before PCA processing
         result_df = pd.DataFrame(result_data, index=variant_indices, columns=genes)
 
+        print(result_df)
+
         print("Performing matrix operations...")
         result_data = pca_projector.project(result_df)
 
@@ -265,11 +269,14 @@ def main(argv=None):
     parser.add_argument("--min-max", type=int, nargs=2, required=True, help="Variant index range to process")
     args = parser.parse_args()
 
-    genes = load_genes(args.genes_file)[:20]
+    genes = load_genes(args.genes_file)
     n_genes = len(genes)
     k_variants = 500000
 
+    print(f"Reading PCA fit from {args.pca_prefix}<eigenvectors/eigenvalues/gene_centers/gene_deviations>")
     pca_projector = PCAProjector.from_txt_prefix(args.pca_prefix)
+
+    print(pca_projector.eigenvectors)
 
     max_variant_index = args.min_max[1]
     min_variant_index = args.min_max[0]
@@ -281,7 +288,7 @@ def main(argv=None):
 
     os.makedirs(chr_output_folder, exist_ok=True)
 
-    make_ld_panel(args.dataset_folder, chr_chunks, genes, n_genes, output_file, pca_projector)
+    make_ld_panel_pca(args.dataset_folder, chr_chunks, genes, output_file, pca_projector)
     return 0
 
 
