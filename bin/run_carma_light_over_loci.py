@@ -32,9 +32,12 @@ from carma_gentropy import CARMA
 
 
 def extract_summary_stats(empirical_dataset, gene_cluster, variant_reference):
+    gene = gene_cluster["gene"].unique()[0]
     locus_chromosome = gene_cluster["chromosome"].unique()[0]
     gene_summary_stats_list = list()
-    for gene, start, end in zip(gene_cluster["gene"], gene_cluster["start"], gene_cluster["end"]):
+    print(f"Extracting summary statistics for gene {gene}, {gene_cluster.shape[0]} loci")
+    for start, end in zip(gene_cluster["start"], gene_cluster["end"]):
+        print(f"{locus_chromosome}:{start}-{end}")
         # Get variants in gene region
         gene_locus_variant_reference = variant_reference[
             (variant_reference["chromosome"] == locus_chromosome) &
@@ -50,7 +53,9 @@ def extract_summary_stats(empirical_dataset, gene_cluster, variant_reference):
                 ("phenotype", "==", gene),
                 ("variant_index", ">=", gene_variant_index_start),
                 ("variant_index", "<=", gene_variant_index_end)]]).read().to_pandas())
+        print(f"Found {gene_summary_stats_list[-1].shape[0]} variants")
     gene_summary_stats = pd.concat(gene_summary_stats_list, axis=0)
+    print(f"Total number of variants for {gene}: {gene_summary_stats.shape[0]} variants")
     return gene_summary_stats
 
 

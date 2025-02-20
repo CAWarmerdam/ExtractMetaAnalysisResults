@@ -66,11 +66,13 @@ class LdCalculator:
         return ld_matrix
 
     def calculate_ld_non_continuous(self, locus_bed):
-        print("Starting to calculate LD...")
         start_time = time.time()
 
         locus_grouped = (locus_bed.groupby((locus_bed.end.shift() - locus_bed.start).lt(0).cumsum())
                          .agg({'chromosome': 'first', 'start': 'first', 'end': 'last', 'name': 'sum'}))
+        print("Starting to calculate LD:")
+        print(locus_grouped)
+
         x_partial_list = list()
 
         for index, continuous_locus in locus_grouped.iterrows():
@@ -78,6 +80,7 @@ class LdCalculator:
             locus_chromosome = continuous_locus["chromosome"].unique()[0]
             locus_start = continuous_locus["start"].min()
             locus_end = continuous_locus["end"].max()
+            print(f"    - Extracting input for LD calculations: {locus_chromosome}:{locus_start}-{locus_end}")
 
             # Get the variants in the locus
             locus_variant_reference = self.reference[
@@ -90,9 +93,12 @@ class LdCalculator:
             variant_index_end = locus_variant_reference["variant_index"].max()
 
             # Filter dataset based on variant index range
-            x_partial_list.append(self.get_x_for_locus(variant_index_end, variant_index_start))
+            x_loc = self.get_x_for_locus(variant_index_end, variant_index_start)
+            x_partial_list.append(x_loc)
+            print(f"    - Found {x_loc.shape[0]} variants")
 
         x = pd.concat(x_partial_list, axis=0)
+        print(f"Found {x.shape[0]} total variants!")
         ld_matrix = self._calc_ld(x)
         end_time = time.time()
         print("LD calculation done!")
