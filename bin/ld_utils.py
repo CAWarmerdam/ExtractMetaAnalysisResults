@@ -69,7 +69,7 @@ class LdCalculator:
         start_time = time.time()
 
         locus_grouped = (locus_bed.groupby((locus_bed.end.shift() - locus_bed.start).lt(0).cumsum())
-                         .agg({'chromosome': 'first', 'start': 'first', 'end': 'last', 'gene': 'sum'}))
+                         .agg({'chromosome': 'first', 'start': 'first', 'end': 'last', 'gene': lambda x: ' '.join(set(x))}))
         print("Starting to calculate LD:")
         print(locus_grouped)
 
@@ -77,9 +77,9 @@ class LdCalculator:
 
         for index, continuous_locus in locus_grouped.iterrows():
             # Extract locus information
-            locus_chromosome = continuous_locus["chromosome"].unique()[0]
-            locus_start = continuous_locus["start"].min()
-            locus_end = continuous_locus["end"].max()
+            locus_chromosome = continuous_locus["chromosome"]
+            locus_start = continuous_locus["start"]
+            locus_end = continuous_locus["end"]
             print(f"    - Extracting input for LD calculations: {locus_chromosome}:{locus_start}-{locus_end}")
 
             # Get the variants in the locus
