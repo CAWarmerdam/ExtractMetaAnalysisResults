@@ -83,7 +83,7 @@ process RunCarmaFineMapping {
 
     input:
 	path empirical, stageAs: 'empirical'
-        path permuted, stageAs: 'permuted'
+        path ld_panel, stageAs: 'ld_panel'
         path variantReference
         path uncorrelatedGenes
         tuple val(chromosome), path(bedFile)
@@ -112,11 +112,8 @@ process RunCarmaFineMapping {
           cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
-        # Need to add -L to cp command when running on a compute nodes scratch space
-        cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
-
         run_carma_over_loci.R \
-          --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
+          --ld !{ld_panel}/chr=!{chromosome} \
           --empirical tmp_empirical \
           --variant-reference !{variantReference} \
           --uncorrelated-genes unique_genes_permuted.txt \
@@ -139,7 +136,7 @@ process RunRSparseProFineMapping {
 
     input:
         path empirical, stageAs: 'empirical'
-        path permuted, stageAs: 'permuted'
+        path ld_panel, stageAs: 'ld_panel'
         path variantReference
         path uncorrelatedGenes
         tuple val(chromosome), path(bedFile)
@@ -168,13 +165,10 @@ process RunRSparseProFineMapping {
           cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
-        # Need to add -L to cp command when running on a compute nodes scratch space
-        cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
-
         export PYTHONUNBUFFERED='1'
 
         run_rsparsepro_over_loci.py \
-          --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
+          --ld !{ld_panel}/chr=!{chromosome} \
           --empirical tmp_empirical \
           --variant-reference !{variantReference} \
           --uncorrelated-genes unique_genes_permuted.txt \
@@ -197,8 +191,8 @@ process RunCarmaSusieFineMapping {
     publishDir "${params.output}/workdir", mode: 'copy', overwrite: true
 
     input:
-    path empirical, stageAs: 'empirical'
-        path permuted, stageAs: 'permuted'
+        path empirical, stageAs: 'empirical'
+        path ld_panel, stageAs: 'ld_panel'
         path variantReference
         path uncorrelatedGenes
         tuple val(chromosome), path(bedFile)
@@ -228,13 +222,10 @@ process RunCarmaSusieFineMapping {
           cp -rL "!{empirical}/phenotype=${gene}" tmp_empirical/
         done <unique_genes_empirical.txt
 
-        # Need to add -L to cp command when running on a compute nodes scratch space
-        cp -rL "!{permuted}/ld_panel_chr!{chromosome}.parquet" tmp_permuted/
-
         export PYTHONUNBUFFERED='1'
 
         run_carma_light_over_loci.py \
-          --ld tmp_permuted/ld_panel_chr!{chromosome}.parquet \
+          --ld !{ld_panel}/chr=!{chromosome} \
           --empirical tmp_empirical \
           --variant-reference !{variantReference} \
           --uncorrelated-genes unique_genes_permuted.txt \
