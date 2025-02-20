@@ -69,7 +69,7 @@ class LdCalculator:
         start_time = time.time()
 
         locus_grouped = (locus_bed.groupby((locus_bed.end.shift() - locus_bed.start).lt(0).cumsum())
-                         .agg({'chromosome': 'first', 'start': 'first', 'end': 'last', 'gene': lambda x: ' '.join(set(x))}))
+                         .agg({'chromosome': 'first', 'start': 'min', 'end': 'max', 'gene': lambda name: ','.join(set(name))}))
         print("Starting to calculate LD:")
         print(locus_grouped)
 
