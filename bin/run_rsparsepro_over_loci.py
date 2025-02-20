@@ -25,62 +25,38 @@ import sys
 import argparse
 import pandas as pd
 import pyarrow.parquet as pq
+import pyarrow.feather as ft
 import numpy as np
 import time
 import ld_utils
 import RSparsePro
+from run_carma_light_over_loci import extract_summary_stats
 
 
 def finemap_locus(
-        empirical_dataset, ld_func, locus_bed, variant_reference,
+        empirical_dataset, ld_calculator, locus_bed, variant_reference,
         min_sample_size_prop=0.8, max_i_squared=40, normalize_sumstats=True,
-        debug=False, dry_run=False, nCS=10
-):
-    # Extract locus information
-    locus_chromosome = locus_bed["chromosome"].unique()[0]
-    locus_start = locus_bed["start"].min()
-    locus_end = locus_bed["end"].max()
+        debug=False, dry_run=False, nCS=10, ft=None):
 
-    # Get the variants in the locus
-    locus_variant_reference = variant_reference[
-        (variant_reference["chromosome"] == locus_chromosome) &
-        (variant_reference["bp"].between(locus_start, locus_end))
-        ]
-
-    # Get the indices of the variants
-    variant_index_start = locus_variant_reference["variant_index"].min()
-    variant_index_end = locus_variant_reference["variant_index"].max()
-
-    print("Starting to calculate LD...")
-    start_time = time.time()
-    ld_matrix, variant_order = ld_func(variant_index_start, variant_index_end)
+    ld_matrix, variant_order = ld_calculator.calculate_ld_non_continuous(
+        locus_bed)
+    variant_index_start = min(variant_order)
+    variant_index_end = max(variant_order)
     variant_indices = dict(zip(variant_order, range(len(variant_order))))
-    end_time = time.time()
-    print("LD calculation done!")
-    print(f"Time taken: {end_time - start_time} seconds")
 
     if debug == 'locus-wise':
-        ld_matrix.to_csv(f"LD_{locus_chromosome}_{locus_start}-{locus_end}.csv")
+        ld_matrix.to_csv(f"LD_{variant_index_start}-{variant_index_end}.csv")
+    elif debug == 'write-susie':
+        ft.write_feather(
+            pd.DataFrame(ld_matrix, index=variant_order, columns=variant_order),
+            f"LD_{variant_index_start}-{variant_index_end}.feather"
+        )
 
     # Fine-mapping the locus
-    fine_mapping_results = []
+    fine_mapping_results = list()
 
-    for gene, start, end in zip(locus_bed["gene"], locus_bed["start"], locus_bed["end"]):
-        # Get variants in gene region
-        gene_locus_variant_reference = variant_reference[
-            (variant_reference["chromosome"] == locus_chromosome) &
-            (variant_reference["bp"].between(start, end))
-            ]
-
-        gene_variant_index_start = gene_locus_variant_reference["variant_index"].min()
-        gene_variant_index_end = gene_locus_variant_reference["variant_index"].max()
-
-        gene_summary_stats = pq.ParquetDataset(
-            empirical_dataset,
-            filters=[[
-                ("phenotype", "==", gene),
-                ("variant_index", ">=", gene_variant_index_start),
-                ("variant_index", "<=", gene_variant_index_end)]]).read().to_pandas()
+    for index, gene_cluster in locus_bed.group_by(["gene", "gene_cluster"]):
+        gene_summary_stats = extract_summary_stats(empirical_dataset, gene_cluster, variant_reference)
 
         # Apply sample size filtering
         sample_size_threshold = gene_summary_stats["sample_size"].max() * min_sample_size_prop
@@ -92,12 +68,15 @@ def finemap_locus(
         gene_summary_stats["Z"] = gene_summary_stats["beta"] / gene_summary_stats["standard_error"]
         # Normalize summary statistics
         if normalize_sumstats:
-            gene_summary_stats["beta"] = gene_summary_stats["Z"] / np.sqrt(gene_summary_stats["sample_size"] + gene_summary_stats["Z"]**2)
-            gene_summary_stats["standard_error"] = 1 / np.sqrt(gene_summary_stats["sample_size"] + gene_summary_stats["Z"]**2)
+            gene_summary_stats["beta"] = gene_summary_stats["Z"] / np.sqrt(
+                gene_summary_stats["sample_size"] + gene_summary_stats["Z"] ** 2)
+            gene_summary_stats["standard_error"] = 1 / np.sqrt(
+                gene_summary_stats["sample_size"] + gene_summary_stats["Z"] ** 2)
 
         # Filter variant order
         variant_order_filtered = [v for v in variant_order if v in gene_summary_stats["variant_index"].values]
         gene_summary_stats = gene_summary_stats.set_index("variant_index").loc[variant_order_filtered].reset_index()
+        gene_summary_stats['outliers'] = False
 
         print(gene_summary_stats)
 
@@ -187,10 +166,14 @@ def main(argv=None):
 
     # LD Function Definition
     if args.ld_type == "gene-set":
-        permuted_dataset = args.ld
-
-        def ld_func(variant_index_start, variant_index_end):
-            return ld_utils.get_ld_matrix(permuted_dataset, uncorrelated_genes, variant_index_start, variant_index_end)
+        ld_calculator = ld_utils.LdCalculator(
+            parquet_dataset=args.ld, observations=uncorrelated_genes, variant_reference=variant_reference)
+    elif args.ld_type == "pcs":
+        ld_calculator = ld_utils.LdCalculatorWide(
+            parquet_dataset=args.ld, observations=None, variant_reference=variant_reference
+        )
+    else:
+        raise NotImplementedError("Cannot find implementation for other LD panel type.")
 
     # Fine-mapping process
     fine_mapping_results_per_locus = []
@@ -201,7 +184,7 @@ def main(argv=None):
 
         fine_mapping_output = finemap_locus(
             empirical_dataset=empirical_dataset,
-            ld_func=ld_func,
+            ld_calculator=ld_calculator,
             locus_bed=locus_bed,
             variant_reference=variant_reference,
             min_sample_size_prop=min_sample_size_prop,
