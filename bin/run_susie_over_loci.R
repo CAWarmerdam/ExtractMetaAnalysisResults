@@ -187,39 +187,34 @@ get_ld_matrix_wide <- function(permuted_dataset, variant_index_start, variant_in
   return(ld_matrix)
 }
 
-# Calculate ld for locus
-get_ld_matrix <- function(permuted_dataset, variant_index_start, variant_index_end) {
-  z_score_dt <- permuted_dataset %>%
-    filter(between(variant_index, variant_index_start, variant_index_end)) %>%
-    mutate(z_score = beta / standard_error) %>%
-    as.data.table()
+extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_reference) {
 
-  # Get z-score matrix from data table
-  z_score_mat <- z_score_dt %>%
-    pivot_wider(id_cols = "variant_index", names_from = "phenotype", values_from = "z_score") %>%
-    collect() %>% as.data.table() %>% as.matrix(rownames=1)
+  cluster_summary_stats_list <- list()
 
-  # Get z-score matrix from data table
-  n_mat <- z_score_dt %>%
-    pivot_wider(id_cols = "variant_index", names_from = "phenotype", values_from = "sample_size") %>%
-    collect() %>% as.data.table() %>% as.matrix(rownames=1)
+  for (i in seq_len(nrow(gene_cluster))) {
+    gene <- gene_cluster$gene[i]
+    start <- gene_cluster$start[i]
+    end <- gene_cluster$end[i]
 
-  # Convert Z-scores to pearson correlations, using sample size - 1 as the degrees of freedom
-  rho_mat <- zToCor(z_score_mat, n_mat-1)
+    # Get variants in gene region
+    gene_locus_variant_reference <- variant_reference %>%
+      filter(chromosome == locus_chromosome,
+             bp >= start,
+             bp <= end)
 
-  start.time <- Sys.time()
+    gene_variant_index_start <- min(gene_locus_variant_reference$variant_index, na.rm = TRUE)
+    gene_variant_index_end <- max(gene_locus_variant_reference$variant_index, na.rm = TRUE)
 
-  rho_mat <- rho_mat - rowMeans(rho_mat)
-  # Standardize each variable
-  rho_mat <- rho_mat / sqrt(rowSums(rho_mat^2))
-  # Calculate correlations
-  ld_matrix <- tcrossprod(rho_mat)
+    # Read Parquet data with filtering
+    dataset <- open_dataset(empirical_dataset, format = "parquet")
+    cluster_summary_stats_list[[i]] <- dataset %>%
+      filter(phenotype == gene,
+             variant_index >= gene_variant_index_start,
+             variant_index <= gene_variant_index_end) %>%
+      collect()
+  }
 
-  end.time <- Sys.time()
-  time.taken <- end.time - start.time
-
-  print(time.taken)
-  return(ld_matrix)
+  return(bind_rows(cluster_summary_stats_list))
 }
 
 finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_reference, min_sample_size_prop=0.8, max_i_squared=40, normalize_sumstats=T, debug=FALSE, dry_run=FALSE, nCS = 10) {
@@ -235,7 +230,6 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
   variant_index_start <- min(locus_variant_reference$variant_index)
   variant_index_end <- max(locus_variant_reference$variant_index)
 
-  ld_matrix <- ld_func(variant_index_start, variant_index_end)
   message("Starting to calculate LD...")
   start.time <- Sys.time()
   ld_matrix <- ld_func(variant_index_start, variant_index_end)
@@ -251,20 +245,8 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
   }
 
   # Do the remaining bit for finemapping the locus
-  fine_mapping_results <- bind_rows(mapply(function(gene, start, end) {
-
-    # Get the variants to load
-    gene_locus_variant_reference <- variant_reference %>%
-      filter(chromosome == locus_chromosome, between(bp, start, end)) %>% collect()
-
-    # Get the indices of the variants to laod
-    gene_variant_index_start <- min(gene_locus_variant_reference$variant_index)
-    gene_variant_index_end <- max(gene_locus_variant_reference$variant_index)
-
-    gene_summary_stats <- empirical_dataset %>%
-      filter(phenotype == gene, between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
-      collect() %>%
-      as.data.table()
+  fine_mapping_results <- bind_rows(mapply(function(gene_cluster) {
+    gene_summary_stats <- extract_summary_statistics(gene_cluster, empirical_dataset = empirical_dataset, variant_reference = variant_reference)
 
     print(gene_summary_stats)
     message(sprintf("Input has %s variants", nrow(gene_summary_stats)))
@@ -294,14 +276,13 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     print(gene_summary_stats)
     # Do fine-mapping
     if(nrow(gene_summary_stats) > 0 & all(gene_summary_stats$variant_index == variant_order_filtered) & !dry_run){
-      nCS = 10
 
-      estimated_res_var = T
+      estimated_res_var <- T
       fitted_rss2 <- tryCatch({
         fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
       }, error = function(e) {
         fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
-        estimated_res_var = F
+        estimated_res_var <- F
         return(fitted_rss2)
       })
 
@@ -369,7 +350,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     }
     print(gene_summary_stats)
     return(gene_summary_stats)
-  }, locus_bed$gene, locus_bed$start, locus_bed$end, SIMPLIFY =F))
+  }, locus_bed %>% group_by(gene, gene_cluster) %>% group_split(), SIMPLIFY =F))
 
   # Return
   return(fine_mapping_results)
