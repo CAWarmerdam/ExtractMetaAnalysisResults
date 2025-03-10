@@ -87,22 +87,32 @@ def summarize_loci(df):
 
         group['p_value'] = 2 * (1 - norm.cdf(np.abs(group['beta'] / group['standard_error'])))
 
+        # Include all CS variants with highest PIP
+        top_pip_variants = group.loc[group.groupby('SusieRss_CS')['SusieRss_pip'].idxmax()]
+
+        # Filter variants for summary based on thresholds
+        significant_variants = top_pip_variants[(top_pip_variants['max_lbf'] > 2) & (top_pip_variants['p_value'] < 1e-5)]
+
         summary = {
             "phenotype": phenotype,
-            "SusieRss_lambda": lambda_value,
-            "num_snps": len(group),
+            "lambda": lambda_value,
+            "n_snps": len(group),
             "converged": group['SusieRss_pip'].notna().all(),
             "min_variant_index": group['variant_index'].min(),
             "max_variant_index": group['variant_index'].max(),
-            "num_unique_SusieRss_CS": group['SusieRss_CS'].nunique(dropna=True),
-            "num_SusieRss_CS_lbf": group[(group['max_lbf'] > 2) & group['SusieRss_CS'].notna() & group['p_value'] < 1e-5].shape[0],
+            "n_unique_CSs": group['SusieRss_CS'].nunique(dropna=True),
+            "n_unique_decisive_evidence_CSs": len(significant_variants),
             "min_sample_size": group['sample_size'].min(),
             "max_sample_size": group['sample_size'].max(),
             "max_chi2": chi_squared_values.max(),
             "mean_chi2": chi_squared_values.mean(),
             "max_i2": group['i_squared'].max(),
             "median_i2": group['i_squared'].median(),
-            "mean_i2": group['i_squared'].mean()
+            "mean_i2": group['i_squared'].mean(),
+            "variant_indices": ','.join(map(str, top_pip_variants['variant_index'].tolist())),
+            "p_values": ','.join(map(str, top_pip_variants['p_value'].tolist())),
+            "max_lbfs": ','.join(map(str, top_pip_variants['max_lbf'].tolist())),
+            "pips": ','.join(map(str, top_pip_variants['SusieRss_pip'].tolist()))
         }
         summaries.append(summary)
     return pd.DataFrame(summaries)
