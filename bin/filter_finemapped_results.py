@@ -82,7 +82,7 @@ def summarize_loci(df):
         if lbf_cols:
             group["max_lbf"] = group[lbf_cols].max(axis=1)
 
-        chi_squared_values = np.pow(group['beta'] / group['standard_error'], 2)
+        chi_squared_values = np.power(group['beta'] / group['standard_error'], 2)
         summary = {
             "phenotype": phenotype,
             "SusieRss_lambda": lambda_value,
