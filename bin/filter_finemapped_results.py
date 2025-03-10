@@ -49,7 +49,6 @@ import sys
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
-from tqdm import tqdm
 
 
 def process_and_save_failed_genes(df, output_folder):
@@ -112,8 +111,11 @@ def summarize_loci(df):
 def parse_finemapping_output(args):
     df_list_pass = list()
     df_list_summary = list()
-    for path in tqdm(args.inputPath):
-        df = pd.read_csv(path, sep="\t")
+    print(f"Initiating filtering with {len(args.inputPath)} files")
+    print(f"Starting...")
+    for i, path in enumerate(args.inputPath):
+        print(f"\rFile {i}/{len(args.inputPath)}", end="")
+        df = pd.read_csv(path, sep="\t", low_memory=False)
         # Ensure required columns exist
         if 'SusieRss_lambda' not in df.columns:
             df['SusieRss_lambda'] = None
@@ -137,6 +139,8 @@ def parse_finemapping_output(args):
             process_and_save_failed_genes(df_unfiltered, args.failedOutputPath)
         if args.summaryOutputPath is not None:
             df_list_summary.append(summarize_loci(df_unfiltered))
+
+    print(f"\n{len(args.inputPath)} files processed!")
 
     if len(df_list_pass) > 0:
         df_concat_pass = pd.concat(df_list_pass, sort=True)
