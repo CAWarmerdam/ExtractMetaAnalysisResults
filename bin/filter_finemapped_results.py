@@ -29,7 +29,7 @@ Uses:
 """
 
 # Metadata
-__title__ = "Template for a CLI python script" 
+__title__ = "Template for a CLI python script"
 __author__ = "Tijs van Lieshout"
 __created__ = "2022-05-04"
 __updated__ = "2022-05-27"
@@ -43,35 +43,69 @@ __description__ = f"""{__title__} is a python script created on {__created__} by
 
 # Imports
 import argparse
-
+import os
 import pandas as pd
 
-def main(args):
-  df_list = list()
-  for path in args.inputPath:
-      df = pd.read_csv(path, sep="\t")
-      if args.strategy == 'no_filter':
-          pass
-      elif args.strategy == 'naive':
-          df = df[df['SusieRss_pip'] > 0.9]
-      elif args.strategy == 'lbf':
-          lbf_cols = [col for col in df.columns if col.startswith('lbf_cs_')]
-          df["max_lbf"] = df[lbf_cols].max(axis=1)
-          df = df[(df["max_lbf"] > 2) & df["SusieRss_CS"].notna()]
-      elif args.strategy == 'cs':
-          df = df[df["SusieRss_CS"].notna()]
-      df_list.append(df)
 
-  df_concat = pd.concat(df_list, sort=True)
-  df_concat.to_csv(args.outputPath, sep="\t", index=False)
-  return
+def process_and_save_dataframe(df, output_folder):
+    # Ensure required columns exist
+    if 'SusieRss_lambda' not in df.columns:
+        df['SusieRss_lambda'] = None
+    if 'SusieRss_pip' not in df.columns:
+        df['SusieRss_pip'] = None
+
+    # Group by 'phenotype' and 'SusieRss_lambda'
+    grouped = df.groupby(['phenotype', 'SusieRss_lambda'])
+
+    # Filter groups where all 'SusieRss_pip' values are NaN
+    filtered_groups = {name: group for name, group in grouped if group['SusieRss_pip'].isna().all()}
+
+    # Keep only selected columns
+    selected_columns = ['variant_index', 'standard_error', 'sample_size', 'phenotype', 'beta', 'i_squared']
+
+    # Ensure output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Write each group to a partitioned Parquet file
+    for (phenotype, _), group in filtered_groups.items():
+        min_variant_index = group['variant_index'].min()
+        max_variant_index = group['variant_index'].max()
+        output_path = os.path.join(
+            output_folder, f"phenotype={phenotype}_loc={min_variant_index}-{max_variant_index}.feather")
+
+        group[selected_columns].to_feather(output_path)
+        print(f"Saved: {output_path}")
+
+
+def main(args):
+    df_list_pass = list()
+    for path in args.inputPath:
+        df = pd.read_csv(path, sep="\t")
+        df_unfiltered = df.copy()
+        if 'naive' in args.strategy:
+            df = df[df['SusieRss_pip'] > 0.9]
+        if 'lbf' in args.strategy:
+            lbf_cols = [col for col in df.columns if col.startswith('lbf_cs_')]
+            df["max_lbf"] = df[lbf_cols].max(axis=1)
+            df = df[(df["max_lbf"] > 2) & df["SusieRss_CS"].notna()]
+        if 'cs' in args.strategy:
+            df = df[df["SusieRss_CS"].notna()]
+        df_list_pass.append(df)
+
+        if 'write_failed_loci' in args.strategy:
+            process_and_save_dataframe(df_unfiltered, args.failedOutputPath)
+
+    df_concat_pass = pd.concat(df_list_pass, sort=True)
+    df_concat_pass.to_csv(args.outputPath, sep="\t", index=False)
+    return
 
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-  parser.add_argument("-i", "--inputPath", type=str, required=True, help="Help goes here", nargs='+') 
-  parser.add_argument("-s", "--strategy", type=str, required=True, help="Help goes here")
-  parser.add_argument("-o", "--outputPath", type=str, required=True, help="Help goes here")
-  args = parser.parse_args()
-  
-  main(args)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--inputPath", type=str, required=True, help="Help goes here", nargs='+')
+    parser.add_argument("-s", "--strategy", type=str, required=True, help="Help goes here", nargs='+')
+    parser.add_argument("-o", "--outputPath", type=str, required=True, help="Help goes here")
+    parser.add_argument("-f", "--failedOutputPath", type=str, required=False, help="Path to output parquet dataset")
+    args = parser.parse_args()
+
+    main(args)
