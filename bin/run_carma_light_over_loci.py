@@ -41,11 +41,13 @@ def extract_summary_stats(empirical_dataset, gene_cluster, variant_reference):
         # Get variants in gene region
         gene_locus_variant_reference = variant_reference[
             (variant_reference["chromosome"] == locus_chromosome) &
-            (variant_reference["bp"].between(start, end))
+            (variant_reference["bp"].between(start, end, inclusive="both"))
             ]
 
         gene_variant_index_start = gene_locus_variant_reference["variant_index"].min()
         gene_variant_index_end = gene_locus_variant_reference["variant_index"].max()
+
+        print(gene_variant_index_start, gene_variant_index_end)
 
         gene_summary_stats_list.append(pq.ParquetDataset(
             empirical_dataset,
@@ -65,15 +67,15 @@ def filter_locus(
         debug=False, dry_run=False
 ):
 
-    ld_matrix, variant_order = ld_calculator.calculate_ld_non_continuous(
+    ld_matrix, variant_order, variant_index_start, variant_index_end = ld_calculator.calculate_ld_non_continuous(
         locus_bed)
-    variant_index_start = min(variant_order)
-    variant_index_end = max(variant_order)
     variant_indices = dict(zip(variant_order, range(len(variant_order))))
 
+    print(f"Debugging mode: {debug}")
     if debug == 'locus-wise':
         ld_matrix.to_csv(f"LD_{variant_index_start}-{variant_index_end}.csv")
     elif debug == 'write-susie':
+        print(f"Writing LD matrix to 'LD_{variant_index_start}-{variant_index_end}.feather'")
         ft.write_feather(
             pd.DataFrame(ld_matrix, index=variant_order, columns=variant_order),
             f"LD_{variant_index_start}-{variant_index_end}.feather"
@@ -82,7 +84,7 @@ def filter_locus(
     # Fine-mapping the locus
     fine_mapping_results = list()
 
-    for index, gene_cluster in locus_bed.group_by(["gene", "gene_cluster"]):
+    for index, gene_cluster in locus_bed.groupby(["gene", "gene_cluster"]):
         gene_summary_stats = extract_summary_stats(empirical_dataset, gene_cluster, variant_reference)
 
         # Apply sample size filtering
@@ -95,11 +97,12 @@ def filter_locus(
         gene_summary_stats["Z"] = gene_summary_stats["beta"] / gene_summary_stats["standard_error"]
         # Normalize summary statistics
         if normalize_sumstats:
+            min_sample_size = gene_summary_stats["sample_size"].min()
             gene_summary_stats["beta"] = gene_summary_stats["Z"] / np.sqrt(
                 gene_summary_stats["sample_size"] + gene_summary_stats["Z"] ** 2)
             gene_summary_stats["standard_error"] = 1 / np.sqrt(
-                gene_summary_stats["sample_size"] + gene_summary_stats["Z"] ** 2)
-
+                min_sample_size + gene_summary_stats["Z"] ** 2)
+            gene_summary_stats["Z"] = gene_summary_stats["beta"] / gene_summary_stats["standard_error"]
         # Filter variant order
         variant_order_filtered = [v for v in variant_order if v in gene_summary_stats["variant_index"].values]
         gene_summary_stats = gene_summary_stats.set_index("variant_index").loc[variant_order_filtered].reset_index()

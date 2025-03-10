@@ -47,19 +47,23 @@ import argparse
 import pandas as pd
 
 def main(args):
-  df = pd.DataFrame()
+  df_list = list()
   for path in args.inputPath:
-    if len(df) == 0:
       df = pd.read_csv(path, sep="\t")
-    else:
-      df = pd.concat([df, pd.read_csv(path, sep="\t")], sort=True)
+      if args.strategy == 'no_filter':
+          pass
+      elif args.strategy == 'naive':
+          df = df[df['SusieRss_pip'] > 0.9]
+      elif args.strategy == 'lbf':
+          lbf_cols = [col for col in df.columns if col.startswith('lbf_cs_')]
+          df["max_lbf"] = df[lbf_cols].max(axis=1)
+          df = df[(df["max_lbf"] > 2) & df["SusieRss_CS"].notna()]
+      elif args.strategy == 'cs':
+          df = df[df["SusieRss_CS"].notna()]
+      df_list.append(df)
 
-  if args.strategy == 'no_filter':
-    pass
-  elif args.strategy == 'naive':
-    df = df[df['SusieRss_pip'] > 0.9]
-
-  df.to_csv(args.outputPath, sep="\t", index=False)
+  df_concat = pd.concat(df_list, sort=True)
+  df_concat.to_csv(args.outputPath, sep="\t", index=False)
   return
 
 

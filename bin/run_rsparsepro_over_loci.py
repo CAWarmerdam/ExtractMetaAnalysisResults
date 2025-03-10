@@ -36,12 +36,10 @@ from run_carma_light_over_loci import extract_summary_stats
 def finemap_locus(
         empirical_dataset, ld_calculator, locus_bed, variant_reference,
         min_sample_size_prop=0.8, max_i_squared=40, normalize_sumstats=True,
-        debug=False, dry_run=False, nCS=10, ft=None):
+        debug=False, dry_run=False, nCS=20, ft=None):
 
-    ld_matrix, variant_order = ld_calculator.calculate_ld_non_continuous(
+    ld_matrix, variant_order, variant_index_start, variant_index_end = ld_calculator.calculate_ld_non_continuous(
         locus_bed)
-    variant_index_start = min(variant_order)
-    variant_index_end = max(variant_order)
     variant_indices = dict(zip(variant_order, range(len(variant_order))))
 
     if debug == 'locus-wise':
@@ -55,7 +53,7 @@ def finemap_locus(
     # Fine-mapping the locus
     fine_mapping_results = list()
 
-    for index, gene_cluster in locus_bed.group_by(["gene", "gene_cluster"]):
+    for index, gene_cluster in locus_bed.groupby(["gene", "gene_cluster"]):
         gene_summary_stats = extract_summary_stats(empirical_dataset, gene_cluster, variant_reference)
 
         # Apply sample size filtering
@@ -179,7 +177,7 @@ def main(argv=None):
     fine_mapping_results_per_locus = []
 
     for bed_file in args.bed_files:
-        locus_bed = pd.read_csv(bed_file, sep="\t", names=["chromosome", "start", "end", "gene", "cluster"])
+        locus_bed = pd.read_csv(bed_file, sep="\t", names=["chromosome", "start", "end", "gene", "gene_cluster", "cluster"])
         print(f"Starting finemapping in {locus_bed['chromosome'].iloc[0]}:{locus_bed['start'].min()}-{locus_bed['end'].max()} ({len(locus_bed)} genes)")
 
         fine_mapping_output = finemap_locus(

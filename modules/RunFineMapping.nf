@@ -45,8 +45,12 @@ process RunSusieFineMapping {
         mkdir tmp_empirical
         mkdir tmp_permuted
 
-        # Get set of unique genes to use in permuted analysis
-        cat !{uncorrelatedGenes} | sort | uniq > unique_genes_permuted.txt
+        # Check if uncorrelatedGenes is empty or equals NO_FILE before running cat
+        if [[ ! -s !{uncorrelatedGenes} || !{uncorrelatedGenes} == "NO_FILE" ]]; then
+            touch unique_genes_permuted.txt  # Create an empty file
+        else
+            cat !{uncorrelatedGenes} | sort | uniq > unique_genes_permuted.txt
+        fi
 
         # Get set of genes to use in empirical analysis
         cat !{bedFile.join(" ")} > "all_loci.bed"
@@ -245,7 +249,7 @@ process RunCarmaSusieFineMapping {
           --bed-files !{bedFile.join(" ")} \
           --max-i2 !{max_i2} \
           --min-n-prop !{min_n_prop} \
-          !{no_adjust_sumstats ? "--no-adjust-stats" : ""}
+          --no-adjust-stats
 
         rm -r tmp_empirical/
         rm -r tmp_permuted/
@@ -267,7 +271,7 @@ process ExportResults {
       '''
       filter_finemapped_results.py \
       -i !{finemapped.join(" ")} \
-      -s no_filter \
+      -s cs \
       -o finemapped.results.tsv
       '''
 }

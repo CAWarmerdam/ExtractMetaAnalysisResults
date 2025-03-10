@@ -160,7 +160,7 @@ def process_and_write_gene_data(dataset_folder, gene, min_index, max_index):
         return
     filters = [[('variant_index', '>=', min_index), ('variant_index', '<=', max_index)]]
     # Load parquet data for gene
-    summary_stats = pq.ParquetDataset(gene_file_path, validate_schema=True, filters=filters).read().to_pandas()
+    summary_stats = pq.ParquetDataset(gene_file_path, validate_schema=True, filters=filters).read().to_pandas().sort_values('variant_index')
     # Calculate rho
     t_stat = summary_stats['beta'] / summary_stats['standard_error']
     df = summary_stats['sample_size'] - 1

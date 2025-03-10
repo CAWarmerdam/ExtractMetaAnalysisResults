@@ -43,6 +43,7 @@ Mandatory arguments:
 }
 
 params.inclusion_step_output = 'NO_FILE'
+params.uncorrelated_genes = 'NO_FILE'
 params.max_i2 = 100
 params.min_n_prop = 0.8
 params.window_mb = 3
@@ -70,7 +71,7 @@ Channel.fromPath(params.significant).collect().set { significant_subset_ch }
 Channel.fromPath(params.empirical).collect().set { empirical_parquet_ch }
 Channel.fromPath(params.ld).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.genes).splitCsv(header: ['gene']).map { row -> "${row.gene}" } .set { genes_ch }
-Channel.fromPath(params.uncorrelated_genes).collect().set { uncorrelated_genes_ch }
+Channel.fromPath(params.uncorrelated_genes).ifEmpty('NO_FILE').collect().set { uncorrelated_genes_ch }
 Channel.fromPath(params.genome_reference).collect().set { genome_ref_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.gene_reference).collect().set { gene_reference_ch }
@@ -151,7 +152,10 @@ workflow FINEMAPPING {
         model
 
     main:
-        loci_bed_collated_ch = loci_bed_ch.flatMap { chromosome, files -> files.collate(loci_per_job).collect { chunk -> [chromosome, chunk] } }
+        loci_bed_collated_ch = loci_bed_ch.flatMap { chromosome, files -> 
+           def fileList = files instanceof List ? files : [files] // Ensure files is always a list
+           fileList.collate(loci_per_job).collect { chunk -> [chromosome, chunk] } 
+        }
 
         if (model == "susie") {
           finemapped_split_ch = RunSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
@@ -176,7 +180,7 @@ workflow {
 
     // Define loci to do finemapping for
     LOCI(
-        significant_subset_ch,variant_reference_ch,genome_ref_ch,window_mb,genes_per_locus)
+        significant_subset_ch,variant_reference_ch,genome_ref_ch,window_mb,genes_per_locus).view()
 
     // Do finemapping
     FINEMAPPING(

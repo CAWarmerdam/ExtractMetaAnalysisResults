@@ -68,6 +68,9 @@ class LdCalculator:
     def calculate_ld_non_continuous(self, locus_bed):
         start_time = time.time()
 
+        whole_locus_index_start = np.inf
+        whole_locus_index_end = -np.inf
+
         locus_grouped = (locus_bed.groupby((locus_bed.end.shift() - locus_bed.start).lt(0).cumsum())
                          .agg({'chromosome': 'first', 'start': 'min', 'end': 'max', 'gene': lambda name: ','.join(set(name))}))
         print("Starting to calculate LD:")
@@ -91,6 +94,8 @@ class LdCalculator:
             # Get the indices of the variants
             variant_index_start = locus_variant_reference["variant_index"].min()
             variant_index_end = locus_variant_reference["variant_index"].max()
+            whole_locus_index_start = min(whole_locus_index_start, variant_index_start)
+            whole_locus_index_end = max(whole_locus_index_end, variant_index_end)
 
             # Filter dataset based on variant index range
             x_loc = self.get_x_for_locus(variant_index_end, variant_index_start)
@@ -103,7 +108,7 @@ class LdCalculator:
         end_time = time.time()
         print("LD calculation done!")
         print(f"Time taken: {end_time - start_time} seconds")
-        return ld_matrix, x.index.values
+        return ld_matrix, x.index.values, whole_locus_index_start, whole_locus_index_end
 
     def get_x_for_locus(self, variant_index_end, variant_index_start):
         if self.observations is not None:
@@ -131,7 +136,7 @@ class LdCalculatorWide(LdCalculator):
             filters = [[
                 ("variant_index", ">=", variant_index_start),
                 ("variant_index", "<=", variant_index_end)]]
-        return pq.ParquetDataset(self.parquet_dataset, filters=filters).read().to_pandas()
+        return pq.ParquetDataset(self.parquet_dataset, filters=filters).read().to_pandas().set_index("variant_index")
 
 
 

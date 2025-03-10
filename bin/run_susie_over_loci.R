@@ -190,11 +190,15 @@ get_ld_matrix_wide <- function(permuted_dataset, variant_index_start, variant_in
 extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_reference) {
 
   cluster_summary_stats_list <- list()
+  gene <- gene_cluster$gene[1]
+  print(gene)
 
+  message(sprintf("Extracting summary statistics for gene %s, %s loci", gene, nrow(gene_cluster)))
   for (i in seq_len(nrow(gene_cluster))) {
-    gene <- gene_cluster$gene[i]
+    locus_chromosome <- gene_cluster$chromosome[i]
     start <- gene_cluster$start[i]
     end <- gene_cluster$end[i]
+    message(sprintf("%s:%s-%s", locus_chromosome, start, end))
 
     # Get variants in gene region
     gene_locus_variant_reference <- variant_reference %>%
@@ -204,17 +208,23 @@ extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_
 
     gene_variant_index_start <- min(gene_locus_variant_reference$variant_index, na.rm = TRUE)
     gene_variant_index_end <- max(gene_locus_variant_reference$variant_index, na.rm = TRUE)
+    print(gene_variant_index_start)
+    print(gene_variant_index_end)
+    print(str(gene))
+    print(empirical_dataset)
 
     # Read Parquet data with filtering
-    dataset <- open_dataset(empirical_dataset, format = "parquet")
-    cluster_summary_stats_list[[i]] <- dataset %>%
+    query_result <- empirical_dataset %>%
       filter(phenotype == gene,
-             variant_index >= gene_variant_index_start,
-             variant_index <= gene_variant_index_end) %>%
-      collect()
+             between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
+      collect() %>% as.data.table()
+    print(query_result)
+    cluster_summary_stats_list[[as.character(i)]] <- query_result
+    message(sprintf("Found %s variants", nrow(cluster_summary_stats_list[[as.character(i)]])))
   }
-
-  return(bind_rows(cluster_summary_stats_list))
+  summary_stats_bound <- bind_rows(cluster_summary_stats_list)
+  message(sprintf("Total number of variants for %s: %s", gene, nrow(summary_stats_bound)))
+  return(summary_stats_bound)
 }
 
 finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_reference, min_sample_size_prop=0.8, max_i_squared=40, normalize_sumstats=T, debug=FALSE, dry_run=FALSE, nCS = 10) {
