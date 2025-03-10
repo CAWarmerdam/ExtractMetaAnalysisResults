@@ -48,6 +48,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 
 
 def process_and_save_failed_genes(df, output_folder):
@@ -76,13 +77,16 @@ def process_and_save_failed_genes(df, output_folder):
 
 def summarize_loci(df):
     summaries = []
-    grouped = df.groupby(['phenotype', 'SusieRss_lambda'])
+    grouped = df.groupby(['phenotype', 'SusieRss_lambda'], dropna=False)
     for (phenotype, lambda_value), group in grouped:
         lbf_cols = [col for col in df.columns if col.startswith('lbf_cs_')]
         if lbf_cols:
             group["max_lbf"] = group[lbf_cols].max(axis=1)
 
         chi_squared_values = np.power(group['beta'] / group['standard_error'], 2)
+
+        group['p_value'] = 2 * (1 - norm.cdf(np.abs(group['beta'] / group['standard_error'])))
+
         summary = {
             "phenotype": phenotype,
             "SusieRss_lambda": lambda_value,
@@ -91,7 +95,7 @@ def summarize_loci(df):
             "min_variant_index": group['variant_index'].min(),
             "max_variant_index": group['variant_index'].max(),
             "num_unique_SusieRss_CS": group['SusieRss_CS'].nunique(dropna=True),
-            "num_SusieRss_CS_lbf": group[(group['max_lbf'] > 2) & group['SusieRss_CS'].notna()].shape[0],
+            "num_SusieRss_CS_lbf": group[(group['max_lbf'] > 2) & group['SusieRss_CS'].notna() & group['p_value'] < 1e-5].shape[0],
             "min_sample_size": group['sample_size'].min(),
             "max_sample_size": group['sample_size'].max(),
             "max_chi2": chi_squared_values.max(),
@@ -101,7 +105,6 @@ def summarize_loci(df):
             "mean_i2": group['i_squared'].mean()
         }
         summaries.append(summary)
-
     return pd.DataFrame(summaries)
 
 
@@ -115,6 +118,8 @@ def parse_finemapping_output(args):
             df['SusieRss_lambda'] = None
         if 'SusieRss_pip' not in df.columns:
             df['SusieRss_pip'] = None
+        if 'SusieRss_CS' not in df.columns:
+            df['SusieRss_CS'] = None
         df_unfiltered = df.copy()
         if 'none' not in args.strategy:
             if 'naive' in args.strategy:
@@ -147,11 +152,16 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(argv[1:])
 
-    parser.add_argument("-i", "--inputPath", type=str, required=True, help="Help goes here", nargs='+')
-    parser.add_argument("-s", "--strategy", type=str, required=True, help="Help goes here", nargs='+')
-    parser.add_argument("-o", "--outputPath", type=str, required=True, help="Help goes here")
-    parser.add_argument("-f", "--failedOutputPath", type=str, required=False, help="Path to output parquet dataset", default=None)
-    parser.add_argument("-S", "--summaryOutputPath", type=str, required=False, help="Path to write summary to", default=None)
+    parser.add_argument("-i", "--inputPath",
+                        type=str, required=True, help="Help goes here", nargs='+')
+    parser.add_argument("-s", "--strategy",
+                        type=str, required=True, help="Help goes here", nargs='+')
+    parser.add_argument("-o", "--outputPath",
+                        type=str, required=True, help="Help goes here")
+    parser.add_argument("-f", "--failedOutputPath",
+                        type=str, required=False, help="Path to output parquet dataset", default=None)
+    parser.add_argument("-S", "--summaryOutputPath",
+                        type=str, required=False, help="Path to write summary to", default=None)
     args = parser.parse_args()
 
     parse_finemapping_output(args)
