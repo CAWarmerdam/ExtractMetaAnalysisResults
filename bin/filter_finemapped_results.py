@@ -49,6 +49,7 @@ import sys
 import numpy as np
 import pandas as pd
 from scipy.stats import norm
+from tqdm import tqdm
 
 
 def process_and_save_failed_genes(df, output_folder):
@@ -111,7 +112,7 @@ def summarize_loci(df):
 def parse_finemapping_output(args):
     df_list_pass = list()
     df_list_summary = list()
-    for path in args.inputPath:
+    for path in tqdm(args.inputPath):
         df = pd.read_csv(path, sep="\t")
         # Ensure required columns exist
         if 'SusieRss_lambda' not in df.columns:
