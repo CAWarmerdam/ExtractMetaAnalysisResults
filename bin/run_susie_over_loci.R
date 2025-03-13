@@ -93,6 +93,14 @@ parser$add_argument(
 )
 
 parser$add_argument(
+  "--n-cs",
+  required = FALSE,
+  default = c(10, 5, 3),
+  type = 'integer', nargs='+',
+  help = "Number of credible sets that SuSiE should consider."
+)
+
+parser$add_argument(
   "--debug",
   required = FALSE,
   default = FALSE,
@@ -143,25 +151,73 @@ zToCor <- function(z, df){
   return(r)
 }
 
+calculate_ld_matrix <- function(locus_bed, variant_reference, ld_panel_func) {
+  locus_groups <- locus_bed %>%
+    arrange(chromosome, start) %>% # as suggested by @Jonno in case the data is unsorted
+    mutate(indx = c(0, cumsum(as.numeric(lead(start)) > cummax(as.numeric(end)))[-n()])) %>%
+    group_by(indx) %>%
+    summarise(start = first(start), end = last(end)) %>% group_split()
+
+  message(sprintf("Extracting LD panel for %s ranges:", length(locus_groups)))
+
+  mat_list <- list()
+
+  for (locus_group_index in seq_along(locus_groups)) {
+    locus_group <- locus_groups[[locus_group_index]]
+    locus_chromosome <- unique(locus_group %>% pull(chromosome))
+    locus_start <- min(locus_group %>% pull(start))
+    locus_end <- max(locus_group %>% pull(end))
+
+    message(sprintf("Extracting LD panel for range %s: %s:%s-%s",
+                    locus_group_index, locus_chromosome, locus_start, locus_end))
+
+    # Get the variants to load
+    locus_variant_reference <- variant_reference %>%
+      filter(chromosome == locus_chromosome, between(bp, locus_start, locus_end)) %>%
+      collect()
+
+    # Get the indices of the variants to laod
+    variant_index_start <- min(locus_variant_reference$variant_index)
+    variant_index_end <- max(locus_variant_reference$variant_index)
+
+    mat_list[[locus_group]] <- ld_panel_func(variant_index_start, variant_index_end)
+  }
+
+  return(ld_calculator(bind_rows(mat)))
+}
+
+run_susie <- function(nCS, bhat, shat, R, n, estimate_residual_variance = TRUE, verbose = TRUE) {
+  result <- tryCatch({
+    susie_rss(
+      bhat = bhat,
+      shat = shat,
+      R = R,
+      n = n,
+      L = nCS,
+      estimate_residual_variance = estimate_residual_variance,
+      verbose = verbose
+    )
+  }, error = function(e) {
+    message("Error encountered with L = ", nCS, ". Returning NULL.")
+    return(NULL)  # Return NULL so the loop can try the next `nCS`
+  })
+
+  # Return result if it converged, otherwise return NULL
+  if (!is.null(result) && result$converged) {
+    return(result)
+  } else {
+    message("Susie did not converge for L = ", nCS)
+    return(NULL)
+  }
+}
+
 # Extract locus as data table
-get_ld_matrix_alt <- function(permuted_dataset, variant_index_start, variant_index_end) {
-  rho_mat <- permuted_dataset %>%
-    filter(between(variant_index, variant_index_start, variant_index_end)) %>%
-    collect() %>% as.data.table() %>% dcast(variant_index ~ phenotype, value.var = "rho") %>% 
-    as.matrix(rownames=1)
-
-  start.time <- Sys.time()
-
+ld_calculator <- function(rho_mat) {
   rho_mat <- rho_mat - rowMeans(rho_mat)
   # Standardize each variable
   rho_mat <- rho_mat / sqrt(rowSums(rho_mat^2))
   # Calculate correlations
   ld_matrix <- tcrossprod(rho_mat)
-
-  end.time <- Sys.time()
-  time.taken <- end.time - start.time
-
-  print(time.taken)
   return(ld_matrix)
 }
 
@@ -172,19 +228,7 @@ get_ld_matrix_wide <- function(permuted_dataset, variant_index_start, variant_in
     collect() %>% as.data.table() %>%
     as.matrix(rownames=1)
 
-  start.time <- Sys.time()
-
-  rho_mat <- rho_mat - rowMeans(rho_mat)
-  # Standardize each variable
-  rho_mat <- rho_mat / sqrt(rowSums(rho_mat^2))
-  # Calculate correlations
-  ld_matrix <- tcrossprod(rho_mat)
-
-  end.time <- Sys.time()
-  time.taken <- end.time - start.time
-
-  print(time.taken)
-  return(ld_matrix)
+  return(ld_calculator(rho_mat))
 }
 
 extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_reference) {
@@ -227,7 +271,7 @@ extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_
   return(summary_stats_bound)
 }
 
-finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_reference, min_sample_size_prop=0.8, max_i_squared=40, normalize_sumstats=T, debug=FALSE, dry_run=FALSE, nCS = 10) {
+finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_reference, min_sample_size_prop=0.8, max_i_squared=40, normalize_sumstats=T, debug=FALSE, dry_run=FALSE, nCS = NULL) {
   locus_chromosome <- unique(locus_bed %>% pull(chromosome))
   locus_start <- min(locus_bed %>% pull(start))
   locus_end <- max(locus_bed %>% pull(end))
@@ -283,30 +327,50 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     
     gene_summary_stats <- gene_summary_stats[match(variant_order_filtered, (gene_summary_stats$variant_index)), ]
     gene_summary_stats <- gene_summary_stats[gene_summary_stats$variant_index %in% variant_order_filtered, ]
+    gene_summary_stats <- gene_summary_stats %>%
+      mutate(locus_chromosome = gene_cluster$chromosome[1], locus_start = min(gene_cluster$start), locus_end = max(gene_cluster$start))
     print(gene_summary_stats)
     # Do fine-mapping
     if(nrow(gene_summary_stats) > 0 & all(gene_summary_stats$variant_index == variant_order_filtered) & !dry_run){
 
-      estimated_res_var <- T
-      fitted_rss2 <- tryCatch({
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = T, verbose=T)
-      }, error = function(e) {
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
-        estimated_res_var <- F
-        return(fitted_rss2)
-      })
+      SusieRss_lambda <- estimate_s_rss(z=gene_summary_stats$beta / gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),n=max(gene_summary_stats$sample_size))
+      message(sprintf("Lambda: %f", SusieRss_lambda))
 
-      if(!fitted_rss2$converged){
-        fitted_rss2 <- susie_rss(bhat = gene_summary_stats$beta, shat = gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), n = max(gene_summary_stats$sample_size), L = nCS, estimate_residual_variance = F, verbose=T)
-        estimated_res_var = F
+      estimated_res_var <- TRUE
+      fitted_rss2 <- NULL
+      converged <- FALSE
+
+      for (L in nCS) {
+        message("Attempting to run SuSie with L = ", nCS)
+        fitted_rss2 <- run_susie(L, gene_summary_stats$beta, gene_summary_stats$standard_error, as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), max(gene_summary_stats$sample_size))
+        if (!is.null(fitted_rss2) && fitted_rss2$converged) {
+          break  # Stop as soon as we get a converged result
+          converged <- fitted_rss2$converged
+        }
+      }
+
+      # If no nCS value resulted in convergence, report failure
+      # 2nd attempt: If no nCS value resulted in convergence, retry all nCS values with estimate_residual_variance = FALSE
+      if (is.null(fitted_rss2)) {
+        message("None of the nCS values led to convergence. Retrying with estimate_residual_variance = FALSE.")
+        for (L in nCS) {
+          fitted_rss2 <- run_susie(L, bhat, shat, R, n, estimate_residual_variance = FALSE)
+
+          if (!is.null(fitted_rss2)) {
+            estimated_res_var <- FALSE
+            converged <- fitted_rss2$converged
+            break  # Stop as soon as we get a converged result
+          }
+        }
       }
 
       print("Finished!")
       print(fitted_rss2$converged)
+      gene_summary_stats$converged <- converged
+      gene_summary_stats$SusieRss_lambda <- SusieRss_lambda
 
-      if(fitted_rss2$converged){
+      if(!is.null(fitted_rss2) & fitted_rss2$converged) {
         print(summary(fitted_rss2))
-        gene_summary_stats$SusieRss_lambda = estimate_s_rss(z=gene_summary_stats$beta / gene_summary_stats$standard_error, R = as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),n=max(gene_summary_stats$sample_size))
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
         gene_summary_stats$SusieRss_CS = NA
         gene_summary_stats$SusieRss_ResVar = estimated_res_var
@@ -397,6 +461,7 @@ main <- function(argv=NULL) {
   cat("Max I2:", paste(args$max_i2, collapse = ", "), "\n")
   cat("Min sample size prop:", paste(args$min_n_prop, collapse = ", "), "\n")
   cat("No adjust stats:", paste(args$no_adjust_stats, collapse = ", "), "\n")
+  cat("N credible sets:", args$n_cs, "\n")
   cat("Debugging:", args$debug, "\n")
   cat("Dry-run:", args$dry_run, "\n")
 
@@ -481,7 +546,7 @@ main <- function(argv=NULL) {
                                          max_i_squared=max_i_squared,
                                          normalize_sumstats=normalize_sumstats,
                                          debug=debug,
-                                         dry_run=dry_run)
+                                         dry_run=dry_run, nCS=n_cs)
     return(fine_mapping_output)
   }, args$bed_files, SIMPLIFY = F)
 
