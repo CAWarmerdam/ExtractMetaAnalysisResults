@@ -339,13 +339,15 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       estimated_res_var <- TRUE
       fitted_rss2 <- NULL
       converged <- FALSE
+      Susie_L_param <- NA_integer_
 
       for (L in nCS) {
         message("Attempting to run SuSie with L = ", nCS)
         fitted_rss2 <- run_susie(L, gene_summary_stats$beta, gene_summary_stats$standard_error, as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), max(gene_summary_stats$sample_size))
         if (!is.null(fitted_rss2) && fitted_rss2$converged) {
-          break  # Stop as soon as we get a converged result
           converged <- fitted_rss2$converged
+          Susie_L_param <- L
+          break  # Stop as soon as we get a converged result
         }
       }
 
@@ -359,6 +361,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
           if (!is.null(fitted_rss2)) {
             estimated_res_var <- FALSE
             converged <- fitted_rss2$converged
+            Susie_L_param <- L
             break  # Stop as soon as we get a converged result
           }
         }
@@ -368,6 +371,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       print(fitted_rss2$converged)
       gene_summary_stats$converged <- converged
       gene_summary_stats$SusieRss_lambda <- SusieRss_lambda
+      gene_summary_stats$SusieRss_L_param <- Susie_L_param
 
       if(!is.null(fitted_rss2) & fitted_rss2$converged) {
         print(summary(fitted_rss2))
@@ -477,6 +481,7 @@ main <- function(argv=NULL) {
   normalize_sumstats <- !args$no_adjust_stats
   min_sample_size_prop <- args$min_n_prop
   max_i_squared <- args$max_i2
+  n_cs <- args$n_cs
 
   dry_run <- args$dry_run
   debug <- args$debug
