@@ -235,6 +235,7 @@ extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_
 
   cluster_summary_stats_list <- list()
   gene <- gene_cluster$gene[1]
+  gene_cluster <- gene_cluster$gene_cluster[1]
   print(gene)
 
   message(sprintf("Extracting summary statistics for gene %s, %s loci", gene, nrow(gene_cluster)))
@@ -261,7 +262,8 @@ extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_
     query_result <- empirical_dataset %>%
       filter(phenotype == gene,
              between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
-      collect() %>% as.data.table()
+      collect() %>% as.data.table() %>%
+      mutate(gene_cluster = gene_cluster)
     print(query_result)
     cluster_summary_stats_list[[as.character(i)]] <- query_result
     message(sprintf("Found %s variants", nrow(cluster_summary_stats_list[[as.character(i)]])))
@@ -275,6 +277,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
   locus_chromosome <- unique(locus_bed %>% pull(chromosome))
   locus_start <- min(locus_bed %>% pull(start))
   locus_end <- max(locus_bed %>% pull(end))
+  locus_cluster_id <- locus_bed %>% pull(cluster)[1]
 
   # Get the variants to load
   locus_variant_reference <- variant_reference %>%
@@ -328,7 +331,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     gene_summary_stats <- gene_summary_stats[match(variant_order_filtered, (gene_summary_stats$variant_index)), ]
     gene_summary_stats <- gene_summary_stats[gene_summary_stats$variant_index %in% variant_order_filtered, ]
     gene_summary_stats <- gene_summary_stats %>%
-      mutate(locus_chromosome = gene_cluster$chromosome[1], locus_start = min(gene_cluster$start), locus_end = max(gene_cluster$start))
+      mutate(locus_chromosome = gene_cluster$chromosome[1], locus_start = min(gene_cluster$start), locus_end = max(gene_cluster$start), cluster=locus_cluster_id)
     print(gene_summary_stats)
     # Do fine-mapping
     if(nrow(gene_summary_stats) > 0 & all(gene_summary_stats$variant_index == variant_order_filtered) & !dry_run){
@@ -344,7 +347,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       for (L in nCS) {
         message("Attempting to run SuSie with L = ", L, ", and estimate_residual_variance = TRUE")
         fitted_rss2 <- run_susie(L, gene_summary_stats$beta, gene_summary_stats$standard_error, as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), max(gene_summary_stats$sample_size))
-        if (!is.null(fitted_rss2) && fitted_rss2$converged) {
+        if (!is.null(fitted_rss2) && fitted_rss2$converged && length(fitted_rss2$sets[[1]]) > 0) {
           converged <- fitted_rss2$converged
           Susie_L_param <- L
           break  # Stop as soon as we get a converged result
@@ -355,12 +358,18 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       # 2nd attempt: If no nCS value resulted in convergence, retry all nCS values with estimate_residual_variance = FALSE
       if (is.null(fitted_rss2)) {
         message("None of the nCS values led to convergence. Retrying with estimate_residual_variance = FALSE.")
+        estimated_res_var <- FALSE
         for (L in nCS) {
           message("Attempting to run SuSie with L = ", L, ", and estimate_residual_variance = FALSE")
-          fitted_rss2 <- run_susie(L, bhat, shat, R, n, estimate_residual_variance = FALSE)
+          fitted_rss2 <- run_susie(
+            L,
+            gene_summary_stats$beta,
+            gene_summary_stats$standard_error,
+            as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),
+            max(gene_summary_stats$sample_size),
+            estimate_residual_variance = FALSE)
 
-          if (!is.null(fitted_rss2)) {
-            estimated_res_var <- FALSE
+          if (!is.null(fitted_rss2) && fitted_rss2$converged && length(fitted_rss2$sets[[1]]) > 0) {
             converged <- fitted_rss2$converged
             Susie_L_param <- L
             break  # Stop as soon as we get a converged result
@@ -540,8 +549,13 @@ main <- function(argv=NULL) {
     }
   }
 
-  fine_mapping_results_per_locus <- mapply(function(bed_file) {
-    locus_bed <- fread(bed_file, col.names = c("chromosome", "start", "end", "gene", "gene_cluster", "cluster"))
+  required_bed_cols <- c("chromosome", "start", "end", "gene", "gene_cluster", "cluster")
+
+  input_loci <- bind_rows(mapply(function(bed_file) {
+    return(fread(bed_file, col.names = required_bed_cols))
+  }, args$bed_files, SIMPLIFY = F))
+
+  fine_mapping_results_per_locus <- mapply(function(locus_bed) {
     message(sprintf("Starting finemapping in %s:%s-%s (%s genes)", locus_bed$chromosome[1], min(locus_bed$start), max(locus_bed$end), nrow(locus_bed)))
     # Assumes fine_mapping_output is some sort of data.frame/data.table or tibble
     fine_mapping_output <- finemap_locus(empirical_dataset=empirical_dataset,
@@ -554,12 +568,26 @@ main <- function(argv=NULL) {
                                          debug=debug,
                                          dry_run=dry_run, nCS=n_cs)
     return(fine_mapping_output)
-  }, args$bed_files, SIMPLIFY = F)
+  }, input_loci %>% group_by(cluster) %>% group_split(), SIMPLIFY = F)
 
   combined_results <- bind_rows(fine_mapping_results_per_locus)
 
   if (!dry_run) {
     fwrite(combined_results, "finemapped.results.tsv", sep="\t", quote=F, row.names=F, col.names=T)
+
+    finemapping_locus_log <- combined_results %>%
+      group_by(phenotype, cluster) %>%
+      summarise(converged = all(converged),
+                lambda = first(SusieRss_lambda),
+                n_credible_sets = n_distinct(SusieRss_CS, na.rm=T)) %>%
+      inner_join(input_loci, by = c("phenotype" = "gene", "cluster" = "cluster")) %>%
+      select(chromosome, start, end, gene, gene_cluster, cluster, lambda, converged)
+
+    fwrite(finemapping_locus_log, "finemapping.log.bed", sep="\t", quote=F, row.names=F, col.names=T)
+    fwrite(finemapping_locus_log %>%
+             filter(!(converged & n_credible_sets > 0)) %>%
+             select(all_of(required_bed_cols)),
+           "failed_finemapping_loci.bed", sep="\t", quote=F, row.names=F, col.names=T)
   }
 }
 
