@@ -342,7 +342,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       Susie_L_param <- NA_integer_
 
       for (L in nCS) {
-        message("Attempting to run SuSie with L = ", nCS)
+        message("Attempting to run SuSie with L = ", L, ", and estimate_residual_variance = TRUE")
         fitted_rss2 <- run_susie(L, gene_summary_stats$beta, gene_summary_stats$standard_error, as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), max(gene_summary_stats$sample_size))
         if (!is.null(fitted_rss2) && fitted_rss2$converged) {
           converged <- fitted_rss2$converged
@@ -356,6 +356,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       if (is.null(fitted_rss2)) {
         message("None of the nCS values led to convergence. Retrying with estimate_residual_variance = FALSE.")
         for (L in nCS) {
+          message("Attempting to run SuSie with L = ", L, ", and estimate_residual_variance = FALSE")
           fitted_rss2 <- run_susie(L, bhat, shat, R, n, estimate_residual_variance = FALSE)
 
           if (!is.null(fitted_rss2)) {
@@ -384,20 +385,20 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
           }
         }
         lbfOut = t(fitted_rss2$lbf_variable)
-        if(ncol(lbfOut)<nCS){
+        if(ncol(lbfOut)<Susie_L_param){
           lbfOut = as.data.frame(lbfOut)
-          for(j in 1:(nCS - ncol(lbfOut))){
+          for(j in 1:(Susie_L_param - ncol(lbfOut))){
             lbfOut[paste("lbf_cs",j,sep="_")] = NA
           }
         }
-        colnames(lbfOut) = paste("lbf_cs",1:nCS,sep="_")
+        colnames(lbfOut) = paste("lbf_cs",1:Susie_L_param,sep="_")
         gene_summary_stats = cbind(gene_summary_stats, lbfOut)
       } else {
         print("Did not converge")
         gene_summary_stats$SusieRss_pip = NA
         gene_summary_stats$SusieRss_CS = NA
         gene_summary_stats$SusieRss_ResVar = NA
-        for(j in 1:nCS){
+        for(j in 1:Susie_L_param){
           gene_summary_stats[[paste("lbf_cs",j,sep="_")]] = NA
         }
       }
@@ -411,7 +412,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       gene_summary_stats$SusieRss_pip = NA
       gene_summary_stats$SusieRss_CS = NA
       gene_summary_stats$SusieRss_ResVar = NA
-      for(j in 1:nCS){
+      for(j in 1:Susie_L_param){
         gene_summary_stats[[paste("lbf_cs",j,sep="_")]] = NA
       }
     }
