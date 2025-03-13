@@ -557,6 +557,7 @@ main <- function(argv=NULL) {
 
   fine_mapping_results_per_locus <- mapply(function(locus_bed) {
     message(sprintf("Starting finemapping in %s:%s-%s (%s genes)", locus_bed$chromosome[1], min(locus_bed$start), max(locus_bed$end), nrow(locus_bed)))
+    message(locus_bed)
     # Assumes fine_mapping_output is some sort of data.frame/data.table or tibble
     fine_mapping_output <- finemap_locus(empirical_dataset=empirical_dataset,
                                          ld_func=ld_func,
@@ -568,7 +569,7 @@ main <- function(argv=NULL) {
                                          debug=debug,
                                          dry_run=dry_run, nCS=n_cs)
     return(fine_mapping_output)
-  }, input_loci %>% group_by(cluster) %>% group_split(), SIMPLIFY = F)
+  }, input_loci %>% group_by(cluster) %>% group_split(.keep=T), SIMPLIFY = F)
 
   combined_results <- bind_rows(fine_mapping_results_per_locus)
 
