@@ -396,10 +396,11 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
 
       print("Finished!")
       print(trace)
+      Susie_L_param <- L
       gene_summary_stats$converged <- F
       gene_summary_stats$trace <- paste(trace, collapse=";")
       gene_summary_stats$SusieRss_lambda <- SusieRss_lambda
-      gene_summary_stats$SusieRss_L_param <- L
+      gene_summary_stats$SusieRss_L_param <- Susie_L_param
 
       if(!is.null(fitted_rss2) && fitted_rss2$converged) {
         print(summary(fitted_rss2))
