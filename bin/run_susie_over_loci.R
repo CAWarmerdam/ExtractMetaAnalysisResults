@@ -263,7 +263,8 @@ extract_summary_statistics <- function(gene_cluster, empirical_dataset, variant_
       filter(phenotype == gene,
              between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
       collect() %>% as.data.table() %>%
-      mutate(gene_cluster = gene_cluster)
+      mutate(gene_cluster = gene_cluster,
+             gene_locus_window = i)
     print(query_result)
     cluster_summary_stats_list[[as.character(i)]] <- query_result
     message(sprintf("Found %s variants", nrow(cluster_summary_stats_list[[as.character(i)]])))
