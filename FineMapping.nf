@@ -158,19 +158,21 @@ workflow FINEMAPPING {
         }
 
         if (model == "susie") {
-          finemapped_split_ch = RunSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
+          finemapped_split_ch = RunSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats)
         } else if (model == "carma") {
-          finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
+          finemapped_split_ch = RunCarmaFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats)
         } else if (model == "carma+susie") {
-          finemapped_split_ch = RunCarmaSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).finemapped.flatten().collect()
+          finemapped_split_ch = RunCarmaSusieFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats)
         } else if (model == "rsparsepro") {
-          finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats).flatten().collect()
+          finemapped_split_ch = RunRSparseProFineMapping(empirical_parquet_ch, permuted_parquet_ch, variant_reference_ch, uncorrelated_genes_ch, loci_bed_collated_ch, ld_type, max_i2, min_n_prop, no_adjust_sumstats)
         } else {
           error "Unsupported model: ${model}"
         }
 
         // Write out results
-        ExportResults(finemapped_split_ch)
+        ExportResults(finemapped_split_ch.finemapped.flatten().collect())
+        
+        finemapped_split_ch.log.collectFile(name: "finemapping.log.collected.bed", keepHeader: true, skip: 1, storeDir: "${params.output}/finemapped")
 
 }
 
