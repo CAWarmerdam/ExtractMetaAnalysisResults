@@ -99,7 +99,7 @@ def summarize_loci(df):
         significant_variants = top_pip_variants[(top_pip_variants['max_lbf'] > 2) & (top_pip_variants['p_value'] < 1e-5)]
 
         # Lead variant
-        lead_variant = group[np.abs(group['z_score']).idxmax()]
+        lead_variant = group.loc[np.abs(group['z_score']).idxmax()]
 
         summary = {
             "phenotype": phenotype,
