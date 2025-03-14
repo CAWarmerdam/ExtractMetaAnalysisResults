@@ -264,7 +264,8 @@ extract_summary_statistics <- function(gene_cluster_df, empirical_dataset, varia
       filter(phenotype == gene,
              between(variant_index, gene_variant_index_start, gene_variant_index_end)) %>%
       collect() %>% as.data.table() %>%
-      mutate(gene_cluster = gene_cluster)
+      mutate(gene_cluster = gene_cluster,
+             gene_locus_window = i)
     print(query_result)
     cluster_summary_stats_list[[as.character(i)]] <- query_result
     message(sprintf("Found %s variants", nrow(cluster_summary_stats_list[[as.character(i)]])))
@@ -343,14 +344,26 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
 
       estimated_res_var <- TRUE
       fitted_rss2 <- NULL
-      converged <- FALSE
+      trace <- c()
 
       for (L in nCS) {
         message("Attempting to run SuSie with L = ", L, ", and estimate_residual_variance = TRUE")
-        fitted_rss2 <- run_susie(L, gene_summary_stats$beta, gene_summary_stats$standard_error, as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), max(gene_summary_stats$sample_size))
-        if (!is.null(fitted_rss2) && fitted_rss2$converged && length(fitted_rss2$sets[[1]]) > 0) {
-          converged <- fitted_rss2$converged
-          break  # Stop as soon as we get a converged result
+        fitted_rss2 <- run_susie(
+          L, gene_summary_stats$beta,
+          gene_summary_stats$standard_error,
+          as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),
+          max(gene_summary_stats$sample_size),
+          estimate_residual_variance = estimated_res_var)
+        if (!is.null(fitted_rss2) && fitted_rss2$converged) {
+          at_least_one_cs <- length(fitted_rss2$sets[[1]]) > 0
+          trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                    L, estimated_res_var, T, at_least_one_cs))
+          if (at_least_one_cs) {
+            break  # Stop as soon as we get a converged result and a cs
+          }
+        } else {
+          trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                    L, estimated_res_var, F, NA))
         }
       }
 
@@ -367,24 +380,31 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
             gene_summary_stats$standard_error,
             as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),
             max(gene_summary_stats$sample_size),
-            estimate_residual_variance = FALSE)
+            estimate_residual_variance = estimated_res_var)
 
-          if (!is.null(fitted_rss2) && fitted_rss2$converged && length(fitted_rss2$sets[[1]]) > 0) {
-            converged <- fitted_rss2$converged
-            break  # Stop as soon as we get a converged result
+          if (!is.null(fitted_rss2) && fitted_rss2$converged) {
+            at_least_one_cs <- length(fitted_rss2$sets[[1]]) > 0
+            trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                      L, estimated_res_var, T, at_least_one_cs))
+            if (at_least_one_cs) {
+              break  # Stop as soon as we get a converged result and a cs
+            }
+          } else {
+            trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                      L, estimated_res_var, F, NA))
           }
-        }
       }
 
       print("Finished!")
-      print(converged)
-      Susie_L_param <- L
-      gene_summary_stats$converged <- converged
+      print(trace)
+      gene_summary_stats$converged <- F
+      gene_summary_stats$trace <- paste(trace, collapse=";")
       gene_summary_stats$SusieRss_lambda <- SusieRss_lambda
-      gene_summary_stats$SusieRss_L_param <- Susie_L_param
+      gene_summary_stats$SusieRss_L_param <- L
 
       if(!is.null(fitted_rss2) && fitted_rss2$converged) {
         print(summary(fitted_rss2))
+        gene_summary_stats$converged <- T
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
         gene_summary_stats$SusieRss_CS = NA
         gene_summary_stats$SusieRss_ResVar = estimated_res_var

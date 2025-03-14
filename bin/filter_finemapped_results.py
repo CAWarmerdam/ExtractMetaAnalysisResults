@@ -108,6 +108,7 @@ def summarize_loci(df):
             "lambda": lambda_value,
             "n_snps": len(group),
             "converged": group['converged'].all(),
+            "trace": group['trace'].values[0],
             "param_L": group['SusieRss_L_param'].min(),
             "param_ResVar": group['SusieRss_ResVar'].all(),
             "min_variant_index": group['variant_index'].min(),
