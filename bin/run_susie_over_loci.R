@@ -391,6 +391,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
             trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
                                       L, estimated_res_var, F, NA))
           }
+        }
       }
 
       print("Finished!")
