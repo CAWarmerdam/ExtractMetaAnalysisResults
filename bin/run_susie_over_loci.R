@@ -277,7 +277,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
   locus_chromosome <- unique(locus_bed %>% pull(chromosome))
   locus_start <- min(locus_bed %>% pull(start))
   locus_end <- max(locus_bed %>% pull(end))
-  locus_cluster_id <- locus_bed %>% pull(cluster)[1]
+  locus_cluster_id <- locus_bed$cluster[1]
 
   # Get the variants to load
   locus_variant_reference <- variant_reference %>%
@@ -341,16 +341,26 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
 
       estimated_res_var <- TRUE
       fitted_rss2 <- NULL
-      converged <- FALSE
-      Susie_L_param <- NA_integer_
+      trace <- c()
 
       for (L in nCS) {
         message("Attempting to run SuSie with L = ", L, ", and estimate_residual_variance = TRUE")
-        fitted_rss2 <- run_susie(L, gene_summary_stats$beta, gene_summary_stats$standard_error, as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]), max(gene_summary_stats$sample_size))
-        if (!is.null(fitted_rss2) && fitted_rss2$converged && length(fitted_rss2$sets[[1]]) > 0) {
-          converged <- fitted_rss2$converged
-          Susie_L_param <- L
-          break  # Stop as soon as we get a converged result
+        fitted_rss2 <- run_susie(
+          L, gene_summary_stats$beta,
+          gene_summary_stats$standard_error,
+          as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),
+          max(gene_summary_stats$sample_size),
+          estimate_residual_variance = estimated_res_var)
+        if (!is.null(fitted_rss2) && fitted_rss2$converged) {
+          at_least_one_cs <- length(fitted_rss2$sets[[1]]) > 0
+          trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                    L, estimated_res_var, T, at_least_one_cs))
+          if (at_least_one_cs) {
+            break  # Stop as soon as we get a converged result and a cs
+          }
+        } else {
+          trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                    L, estimated_res_var, F, NA))
         }
       }
 
@@ -367,24 +377,31 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
             gene_summary_stats$standard_error,
             as.matrix(ld_matrix[variant_order_filtered, variant_order_filtered]),
             max(gene_summary_stats$sample_size),
-            estimate_residual_variance = FALSE)
+            estimate_residual_variance = estimated_res_var)
 
-          if (!is.null(fitted_rss2) && fitted_rss2$converged && length(fitted_rss2$sets[[1]]) > 0) {
-            converged <- fitted_rss2$converged
-            Susie_L_param <- L
-            break  # Stop as soon as we get a converged result
+          if (!is.null(fitted_rss2) && fitted_rss2$converged) {
+            at_least_one_cs <- length(fitted_rss2$sets[[1]]) > 0
+            trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                      L, estimated_res_var, T, at_least_one_cs))
+            if (at_least_one_cs) {
+              break  # Stop as soon as we get a converged result and a cs
+            }
+          } else {
+            trace <- c(trace, sprintf("L=%d,ResVar=%s,converged=%s,nonZeroCSs=%s",
+                                      L, estimated_res_var, F, NA))
           }
-        }
       }
 
       print("Finished!")
-      print(converged)
-      gene_summary_stats$converged <- converged
+      print(trace)
+      gene_summary_stats$converged <- F
+      gene_summary_stats$trace <- paste(trace, collapse=";")
       gene_summary_stats$SusieRss_lambda <- SusieRss_lambda
-      gene_summary_stats$SusieRss_L_param <- Susie_L_param
+      gene_summary_stats$SusieRss_L_param <- L
 
       if(!is.null(fitted_rss2) && fitted_rss2$converged) {
         print(summary(fitted_rss2))
+        gene_summary_stats$converged <- T
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
         gene_summary_stats$SusieRss_CS = NA
         gene_summary_stats$SusieRss_ResVar = estimated_res_var
@@ -557,7 +574,7 @@ main <- function(argv=NULL) {
 
   fine_mapping_results_per_locus <- mapply(function(locus_bed) {
     message(sprintf("Starting finemapping in %s:%s-%s (%s genes)", locus_bed$chromosome[1], min(locus_bed$start), max(locus_bed$end), nrow(locus_bed)))
-    message(locus_bed)
+    print(locus_bed)
     # Assumes fine_mapping_output is some sort of data.frame/data.table or tibble
     fine_mapping_output <- finemap_locus(empirical_dataset=empirical_dataset,
                                          ld_func=ld_func,
