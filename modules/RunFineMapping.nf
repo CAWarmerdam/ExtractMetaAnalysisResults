@@ -268,6 +268,7 @@ process ExportResults {
 
   output:
       path "finemapped.results.tsv"
+      path "finemapping_summary.tsv"
 
   shell:
       '''
@@ -275,5 +276,6 @@ process ExportResults {
       -i !{finemapped.join(" ")} \
       -s cs \
       -o finemapped.results.tsv
+      -S finemapping_summary.tsv
       '''
 }
