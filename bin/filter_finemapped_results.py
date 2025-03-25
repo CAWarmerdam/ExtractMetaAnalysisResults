@@ -117,6 +117,8 @@ def summarize_loci(df):
             "bp_end": locus_end,
             "lead_variant_index": lead_variant['variant_index'],
             "lead_variant_z": lead_variant['z_score'],
+            "lead_variant_beta": lead_variant['beta'],
+            "lead_variant_standard_error": lead_variant['standard_error'],
             "n_unique_CSs": group['SusieRss_CS'].nunique(dropna=True),
             "n_unique_CSs_pass": len(significant_variants),
             "min_sample_size": group['sample_size'].min(),
