@@ -115,6 +115,27 @@ class QtlNThresholdFilter(QtlFilter):
         return self._n
 
 
+class Clumper:
+    def __init__(self, p_threshold=5e-8, window=1000000):
+        self.p_threshold = p_threshold
+        self.window = window
+    def identify_lead_snps(self, df):
+        p_threshold = self.p_threshold
+        window = self.window
+        data_filtered = df.loc[df['p_value'] < p_threshold]
+        # Iteratively identify most significant SNP, and remove all other SNPs in the window
+        res = list()
+        while data_filtered.shape[0] > 0:
+            lead_snp = data_filtered.loc[data_filtered['p_value'].idxmin()]
+            res.append(lead_snp)
+            data_filtered = data_filtered[~(
+                    (data_filtered['chromosome'] == lead_snp['chromosome']) &
+                    (data_filtered['bp'] > lead_snp['bp'] - window) &
+                    (data_filtered['bp'] < lead_snp['bp'] + window))]
+        res_df = pd.DataFrame(res)
+        return res_df
+
+
 class QtlResultProcessor:
     def __init__(self, path, gene_filter=None):
         self.path = path
@@ -223,7 +244,7 @@ def column_specification(cols):
     return column_specifications
 
 
-def export_write(input_file, output_prefix, qtl_gene_filter, variant_filter, cohort_filter, column_specifications, p_thresh=None, as_matrix=False):
+def export_write(input_file, output_prefix, qtl_gene_filter, variant_filter, cohort_filter, column_specifications, p_thresh=None, as_matrix=False, clump=False, variant_reference=None):
     file_conns = dict()
     columns_to_write = column_specifications[""].union(column_specifications["+"])
     try:
@@ -252,13 +273,23 @@ def export_write(input_file, output_prefix, qtl_gene_filter, variant_filter, coh
                 result_processor = QtlResultProcessor(
                     input_file, qtl_single_gene_filter)
                 result_processor.variant_filters = [variant_filter] if variant_filter is not None else None
-                result_processor.cohort_filter = cohort_filter 
+                result_processor.cohort_filter = cohort_filter
                 if p_thresh is not None:
                     result_processor.significance_filter = QtlPThresholdFilter(p_thresh)
-                df = result_processor.extract(
-                    cols=column_specifications[""],
-                    drop=column_specifications["-"],
-                    add=column_specifications["+"])
+                if clump:
+                    eqtls = result_processor.extract(
+                        cols=column_specifications[""],
+                        drop=column_specifications["-"],
+                        add=column_specifications["+"].union({"p_value",}))
+                    eqtls_merged = eqtls.merge(variant_reference, how="left", on="variant_index")
+                    clumper = Clumper(p_threshold=p_thresh)
+                    df = (
+                        eqtls_merged.groupby("phenotype", group_keys=False).apply(lambda x: clumper.identify_lead_snps(x)))
+                else:
+                    df = result_processor.extract(
+                        cols=column_specifications[""],
+                        drop=column_specifications["-"],
+                        add=column_specifications["+"])
                 df.to_csv(file_conns["long"], sep="\t", header=first, index=None)
                 first = False
     finally:
@@ -327,6 +358,7 @@ def main(argv=None):
                         type=column_specification, help="""Extract only z-scores""")
     parser.add_argument('-n', '--n-threshold', required=False, default=None,
                         help = "Minimal sample size")
+    parser.add_argument('-d', '--dist-clump', dest="clump", required=False, default=False, action='store_true')
     parser.add_argument('-m', '--as-matrix', dest="as_matrix", required=False, default=False, action='store_true')
     parser.add_argument('-C', '--cohort', required=False, default=None)
 
@@ -346,7 +378,7 @@ def main(argv=None):
     if args.n_threshold is not None:
         n_threshold_filter = QtlNThresholdFilter(args.n_threshold)
 
-    if args.variant_reference is not None and (args.variants is not None or args.variants_file is not None or args.bed_file is not None or args.gene_variant_pair_file is not None):
+    if args.variant_reference is not None and (args.variants is not None or args.variants_file is not None or args.bed_file is not None or args.gene_variant_pair_file is not None or args.clump):
         variant_reference = pd.read_parquet(args.variant_reference)
         print(variant_reference.head())
 
@@ -362,7 +394,7 @@ def main(argv=None):
                      processed_gene_variant_pairs, cohort_filter,
                      args.column_specifications, args.p_thresh)
         return 0
-        
+
     if args.variants_file is not None:
         print("Using variants file '%s' to filter on variants." % args.variants_file)
         if variants_list is not None:
@@ -403,7 +435,7 @@ def main(argv=None):
         print("Starting export")
         export_write(args.input_file, args.output_prefix,
                      qtl_gene_filter, variant_filter, cohort_filter,
-                     args.column_specifications, args.p_thresh, args.as_matrix)
+                     args.column_specifications, args.p_thresh, args.as_matrix, args.clump, variant_reference=variant_reference)
 
     else:
         for i, (index, row) in enumerate(loci.iterrows()):
