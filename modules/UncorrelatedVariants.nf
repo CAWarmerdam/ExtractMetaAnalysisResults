@@ -7,6 +7,7 @@ process GetUncorrelatedVariants {
 
     input:
         path bcf_file
+        path variant_file
 
     output:
         path "corrective_variants.prune.in"
@@ -15,15 +16,18 @@ process GetUncorrelatedVariants {
         """
         echo '6\t28510120\t33480577\tHLA\n' > hla_range.bed
 
+        gunzip -c ${variant_file} > variant_set.txt
+
         plink \
             --bcf ${bcf_file} \
-            --out "corrective_variants"\
+            --out "corrective_variants" \
+            --extract variant_set.txt \
             --exclude 'range' hla_range.bed \
-            --maf 0.05 \
+            --maf 0.01 \
             --geno 0.01 \
             --hwe 0.05 \
             --bp-space 1000 \
-            --indep-pairwise 50mb 5 0.05
+            --indep-pairwise 50mb 5 0.02
 
         """
 }
