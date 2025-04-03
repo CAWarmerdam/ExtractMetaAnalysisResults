@@ -126,7 +126,7 @@ process AnnotateLoci {
     publishDir "${params.output}/loci_empirical_annotated", mode: 'copy', overwrite: true
 
     input:
-        path "locus_*.csv"
+        tuple val(locus_string), path("locus_*.csv")
         path variantReference
         path geneReference
         path mafTable
@@ -134,7 +134,7 @@ process AnnotateLoci {
         val cohorts
 
     output:
-        tuple val(locus_string), path("annotated.csv.gz")
+        tuple val(locus_string), path("annotated_*.csv.gz")
 
     script:
         """
@@ -145,7 +145,7 @@ process AnnotateLoci {
             --gene-gff ${geneReference} \
             --maf-table ${mafTable} \
             --inclusion-path ${inclusionDir} \
-            --out-prefix annotated
+            --out-prefix annotated_${locus_string}
         """
 }
 

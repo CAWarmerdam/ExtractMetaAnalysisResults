@@ -68,7 +68,7 @@ process ExtractVariants {
 
 
 process ExtractCorrectedTransQtls {
-    scratch false
+    scratch true
 
     input:
         path input
@@ -78,7 +78,7 @@ process ExtractCorrectedTransQtls {
         val genes
 
     output:
-        path "extracted*.txt.gz"
+        path "extracted*.txt"
 
     shell:
         phenotypes_formatted = genes.collect { "phenotype=$it" }.join("\n")
@@ -89,7 +89,7 @@ process ExtractCorrectedTransQtls {
         echo "!{genes_formatted}" > genes.txt
 
         while read gene; do
-          cp -r "!{input}/${gene}" tmp_eqtls/
+          cp -rL "!{input}/${gene}" tmp_eqtls/
         done <file_matches.txt
 
         correct_trans_for_cis.R \
