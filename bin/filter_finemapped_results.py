@@ -99,7 +99,7 @@ def summarize_loci(df):
         significant_variants = top_pip_variants[(top_pip_variants['max_lbf'] > 2) & (top_pip_variants['p_value'] < 1e-5)]
 
         # Lead variant
-        lead_variant = group.loc[np.abs(group['z_score']).idxmax()]
+        lead_variants = group.loc[group.groupby('gene_locus_window')['z_score'].apply(lambda x: x.abs().idxmax())]
 
         summary = {
             "phenotype": phenotype,
@@ -115,10 +115,10 @@ def summarize_loci(df):
             "max_variant_index": group['variant_index'].max(),
             "bp_start": locus_start,
             "bp_end": locus_end,
-            "lead_variant_index": lead_variant['variant_index'],
-            "lead_variant_z": lead_variant['z_score'],
-            "lead_variant_beta": lead_variant['beta'],
-            "lead_variant_standard_error": lead_variant['standard_error'],
+            "lead_variant_index": ','.join(map(str, lead_variants['variant_index'].tolist())),
+            "lead_variant_z": ','.join(map(str, lead_variants['z_score'].tolist())),
+            "lead_variant_beta": ','.join(map(str, lead_variants['beta'].tolist())),
+            "lead_variant_standard_error": ','.join(map(str, lead_variants['standard_error'].tolist())),
             "n_unique_CSs": group['SusieRss_CS'].nunique(dropna=True),
             "n_unique_CSs_pass": len(significant_variants),
             "min_sample_size": group['sample_size'].min(),

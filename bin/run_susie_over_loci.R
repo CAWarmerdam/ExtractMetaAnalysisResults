@@ -254,10 +254,6 @@ extract_summary_statistics <- function(gene_cluster_df, empirical_dataset, varia
 
     gene_variant_index_start <- min(gene_locus_variant_reference$variant_index, na.rm = TRUE)
     gene_variant_index_end <- max(gene_locus_variant_reference$variant_index, na.rm = TRUE)
-    print(gene_variant_index_start)
-    print(gene_variant_index_end)
-    print(str(gene))
-    print(empirical_dataset)
 
     # Read Parquet data with filtering
     query_result <- empirical_dataset %>%
@@ -266,7 +262,6 @@ extract_summary_statistics <- function(gene_cluster_df, empirical_dataset, varia
       collect() %>% as.data.table() %>%
       mutate(gene_cluster = gene_cluster,
              gene_locus_window = i)
-    print(query_result)
     cluster_summary_stats_list[[as.character(i)]] <- query_result
     message(sprintf("Found %s variants", nrow(cluster_summary_stats_list[[as.character(i)]])))
   }
@@ -308,7 +303,6 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
   fine_mapping_results <- bind_rows(mapply(function(gene_cluster_df) {
     gene_summary_stats <- extract_summary_statistics(gene_cluster_df, empirical_dataset = empirical_dataset, variant_reference = variant_reference)
 
-    print(gene_summary_stats)
     message(sprintf("Input has %s variants", nrow(gene_summary_stats)))
 
     sample_size_threshold <- max(gene_summary_stats$sample_size) * min_sample_size_prop
@@ -369,7 +363,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
 
       # If no nCS value resulted in convergence, report failure
       # 2nd attempt: If no nCS value resulted in convergence, retry all nCS values with estimate_residual_variance = FALSE
-      if (is.null(fitted_rss2)) {
+      if (is.null(fitted_rss2) || !at_least_one_cs) {
         message("None of the nCS values led to convergence. Retrying with estimate_residual_variance = FALSE.")
         estimated_res_var <- FALSE
         for (L in nCS) {
@@ -403,13 +397,13 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       gene_summary_stats$trace <- paste(trace, collapse=";")
       gene_summary_stats$SusieRss_lambda <- SusieRss_lambda
       gene_summary_stats$SusieRss_L_param <- Susie_L_param
+      gene_summary_stats$SusieRss_ResVar = estimated_res_var
 
       if(!is.null(fitted_rss2) && fitted_rss2$converged) {
         print(summary(fitted_rss2))
         gene_summary_stats$converged <- T
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
         gene_summary_stats$SusieRss_CS = NA
-        gene_summary_stats$SusieRss_ResVar = estimated_res_var
         if(length(fitted_rss2$sets[[1]])!=0){
           for(l in 1:length(fitted_rss2$sets[[1]])){
             gene_summary_stats$SusieRss_CS[fitted_rss2$sets[[1]][[l]]]=gsub("L","",names(fitted_rss2$sets[[1]])[l])
@@ -460,7 +454,7 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
     }
     print(gene_summary_stats)
     return(gene_summary_stats)
-  }, locus_bed %>% group_by(gene, gene_cluster) %>% group_split(), SIMPLIFY =F))
+  }, locus_bed %>% rowwise() %>% group_split(), SIMPLIFY =F))
 
   # Return
   return(fine_mapping_results)
