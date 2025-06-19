@@ -39,7 +39,6 @@ process ExtractPerCohortResults {
         '''
         extract_per_cohort_results.R \
         --input-parquet !{input_parquet} \
-        --master-table !{master_table} \
         --gene_list !{genes.join(" ")} \
         --maf-table !{input_maf} \
         --variant-reference !{variant_reference} \
