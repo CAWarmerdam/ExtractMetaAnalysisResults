@@ -38,7 +38,7 @@ process RunSusieFineMapping {
         val no_adjust_sumstats
 
     output:
-        path "finemapped.*.tsv", emit: output
+        path "finemapped.*.tsv", emit: finemapped
         path "failed_finemapping_loci.bed", emit: failed
         path "finemapping.log.bed", emit: log
 
