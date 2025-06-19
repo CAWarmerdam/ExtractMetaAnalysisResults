@@ -26,11 +26,11 @@ process ExtractPerCohortResults {
     time '1h'
 
     input:
-        input_parquet
-        variant_reference
-        genes
-        maf_table
-        finemapped_variants
+        path input_parquet
+        path variant_reference
+        path maf_table
+        path finemapped_variants
+        val genes
 
     output:
         "extracted_finemapped_variants_per_cohort_*.txt.gz"
@@ -49,7 +49,7 @@ process ExtractPerCohortResults {
 
 //Default parameters
 Channel.fromPath(params.input).collect().set { input_parquet_ch }
-Channel.fromPath(params.genes).splitCsv(header: true).map { row -> "${row.ID}" } .set { genes_ch }
+Channel.fromPath(params.genes).splitCsv(header: true).view().map { row -> "${row.ID}" } .set { genes_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 Channel.fromPath(params.maf_table).collect().set { maf_table_ch }
 Channel.fromPath(params.eqtls).collect().set { finemapped_variants_ch }
@@ -60,7 +60,7 @@ workflow {
     // Buffer genes
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
-    ExtractPerCohortResults(input_parquet_ch, variant_reference_ch, genes_buffered_ch, maf_table_ch, finemapped_variants_ch)
+    ExtractPerCohortResults(input_parquet_ch, variant_reference_ch, maf_table_ch, finemapped_variants_ch, genes_buffered_ch)
 }
 
 workflow.onComplete {
