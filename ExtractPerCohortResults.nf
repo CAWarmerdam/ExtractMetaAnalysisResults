@@ -20,8 +20,12 @@ This pipeline is used to extract subsets of results from the HASE results (numer
 }
 
 process ExtractPerCohortResults {
+    publishDir "${params.output}/extracted_summary_statistics_per_cohort", mode: 'copy', overwrite: true
+    memory '8 GB'
+    executor 'slurm'
+    time '1h'
+
     input:
-        master_table
         input_parquet
         variant_reference
         genes
@@ -43,13 +47,20 @@ process ExtractPerCohortResults {
         '''
 }
 
+//Default parameters
+Channel.fromPath(params.input).collect().set { input_parquet_ch }
+Channel.fromPath(params.genes).splitCsv(header: true).map { row -> "${row.ID}" } .set { genes_ch }
+Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
+Channel.fromPath(params.maf_table).collect().set { maf_table_ch }
+Channel.fromPath(params.eqtls).collect().set { finemapped_variants_ch }
+
+gene_chunk_size=100
+
 workflow {
     // Buffer genes
     genes_buffered_ch = genes_ch.collate(gene_chunk_size)
 
-    per_cohort_results_ch = ExtractPerCohortResults(master_table_ch, input_parquet_ch, variant_reference_ch, genes_buffered_ch, maf_table_ch, finemapped_variants_ch)
-
-    per_cohort_results_ch.collect()
+    ExtractPerCohortResults(input_parquet_ch, variant_reference_ch, genes_buffered_ch, maf_table_ch, finemapped_variants_ch)
 }
 
 workflow.onComplete {
