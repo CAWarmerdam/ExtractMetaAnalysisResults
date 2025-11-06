@@ -155,6 +155,7 @@ variables <- function() {
     "gene_reference" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/public_data/Homo_sapiens.GRCh38.106.gtf.gz",
     "finemapping_summary" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/output/genome_wide_finemapping_susie_20250314/finemapped/finemapping_summary.tsv",
     "finemapping_results" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/output/genome_wide_finemapping_susie_20250314/finemapped/finemapped.results.tsv",
+    "finemapping_log" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/fine_mapping/output/genome_wide_finemapping_susie_20250314/finemapped/finemapping.log.collected.bed",
     "gene_inclusion_file" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/InclusionLists/inclusion_as_parquet/gene_inclusion_table.parquet",
     "variant_inclusion_file" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/InclusionLists/inclusion_as_parquet/variant_inclusion_table.parquet",
     "maf_file" = "/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/InclusionLists/inclusion_as_parquet/maf_table.parquet",
@@ -224,10 +225,10 @@ main <- function(argv = NULL) {
     , .(window_variant_index_end = min(variant_index)), by = .(chromosome, bp)
   ]
 
-  collected <- fread("finemapping.log.collected.bed")
+  collected <- fread(variables["finemapping_log"])
 
   all_windows <- collected %>% select(chromosome, gene, gene_cluster, cluster, start, end)
-  all_windows <- collected %>% group_by(chromosome, gene, gene_cluster, cluster) %>% summarise(start = min(start), end = max(end))
+  #all_windows <- collected %>% group_by(chromosome, gene, gene_cluster, cluster) %>% summarise(start = min(start), end = max(end))
 
   # Finemapping windows that failed
   finemapping_windows_failed <- finemapping_summary %>%
@@ -235,9 +236,12 @@ main <- function(argv = NULL) {
     inner_join(variant_reference %>% select(chromosome, variant_index), by = c("min_variant_index" = "variant_index")) %>%
     inner_join(all_windows, by = c("chromosome", "phenotype" = "gene", "cluster", "gene_cluster")) %>%
     inner_join(variant_mapping_start, by = join_by(chromosome, closest(start <= bp))) %>%
-    inner_join(variant_mapping_end, by = join_by(chromosome, closest(end >= bp)))
+    inner_join(variant_mapping_end, by = join_by(chromosome, closest(end >= bp))) %>%
+    group_by(finemapping_index) %>%
+    mutate(finemapping_index = sprintf("%s_%s", finemapping_index, row_number())) %>%
+    ungroup()
 
-  meta_analysis <- open_dataset("/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/eqtl_mapping/output/2024-09-30_meta_analysis")
+  meta_analysis <- open_dataset("/scratch/hb-functionalgenomics/projects/eqtlgen-phase2/freeze3/eqtl_mapping/output/2024-09-30_meta_analysis/meta/")
 
   # Per failed gene-window combination, get the lead variant.
   finemapping_windows_failed_queried <- pmap(
@@ -254,16 +258,20 @@ main <- function(argv = NULL) {
     }
   )
 
-  annotated_finemapping_failed <- bind_rows(finemapping_windows_failed_queried) %>%
-    inner_join(finemapping_windows_failed, by = c(finemapping_index, phenotype, converge)) %>%
-    select(-trace, -CS_size_pass, -lead_variant_standard_error, -lead_variant_index, -lead_variant_beta, -lead_variant_z, -window_variant_index_start, -window_variant_index_end) %>%
+  annotated_finemapping_failed <- finemapping_windows_failed %>%
+    select(-trace, -CS_size, -CS_size_pass, -lead_variant_standard_error, -lead_variant_index, -lead_variant_beta, -lead_variant_z, -bp.x, -bp.y, -variant_indices, -pips, -max_lbfs,
+           -p_values, -window_variant_index_start, -window_variant_index_end) %>%
+    inner_join(bind_rows(finemapping_windows_failed_queried), by = c("finemapping_index", "phenotype", "converged")) %>%
+    select(-chromosome, -start, -end) %>%
     inner_join(variant_reference, by = c("variant_index" = "variant_index")) %>%
     inner_join(gene_reference, by = c("phenotype" = "gene_id")) %>%
     mutate(same_chromosome = seqid == chromosome,
            type = case_when(
              same_chromosome & between(bp, start - cis_window, end + cis_window) ~ "cis",
              TRUE ~ "trans"
-           )) %>%
+           ),
+           variant_index = as.integer(variant_index),
+           p_value = 2*pnorm(abs(beta/standard_error), lower.tail = F)) %>%
     mutate(CS_identifier = sprintf("%s_NA", finemapping_index))
 
   renaming_vector <- c("variant_index" = "variant_indices", "p_value" = "p_values", "max_lbf" = "max_lbfs", "pip" = "pips")
@@ -274,18 +282,19 @@ main <- function(argv = NULL) {
     mutate(
       across(c(variant_indices, pips, p_values, max_lbfs, CS_size), ~ lapply(str_split(.x, ","), as.numeric))) %>%
     unnest_longer(col = c(variant_indices, pips, p_values, max_lbfs, CS_size)) %>%
-    rename(renaming_vector) %>%
+    rename(setNames(names(renaming_vector), renaming_vector)) %>%
     inner_join(variant_reference, by = c("variant_index" = "variant_index")) %>%
     inner_join(gene_reference, by = c("phenotype" = "gene_id")) %>%
     mutate(same_chromosome = seqid == chromosome,
            type = case_when(
              same_chromosome & between(bp, start - cis_window, end + cis_window) ~ "cis",
              TRUE ~ "trans"
-           )) %>%
+           ),
+           finemapping_index = as.character(finemapping_index)) %>%
     inner_join(finemapping_per_variant,
                by = c("variant_index"="variant_index", "phenotype"="phenotype")) %>%
     mutate(CS_identifier = sprintf("%s_%s", finemapping_index, SusieRss_CS)) %>%
-    select(-trace, -CS_size_pass, -lead_variant_standard_error, -lead_variant_index, -lead_variant_beta, -lead_variant_z)
+    select(-trace, -CS_size_pass, -lead_variant_standard_error, -lead_variant_index, -lead_variant_beta, -lead_variant_z, -CS_size)
 
   fwrite(annotated_finemapping_succeeded, "succeeded_finemapping_output_unfiltered_20250509.txt.gz", col.names=T, row.names=F, quote=F, sep="\t")
 
@@ -297,23 +306,36 @@ main <- function(argv = NULL) {
   independent_variant_set_unfiltered <- bind_rows(annotated_finemapping_failed, annotated_finemapping_succeeded)
   fwrite(annotated_finemapping_succeeded, "independent_variants_unfiltered_20250509.txt.gz", col.names=T, row.names=F, quote=F, sep="\t")
   independent_variant_set <- independent_variant_set_unfiltered %>%
-    filter(max_lbf > 2 & p_value < 1e-5)
+    filter((is.na(max_lbf) | max_lbf > 2) & p_value < 1e-5)
 
-  af_tib <- calculate_af_high_mem(independent_variant_set$variant_index,
-                                  independent_variant_set$phenotype,
-                                  variables["gene_inclusion_file"],
-                                  variables["variant_inclusion_file"],
-                                  variables["maf_file"], sample_sizes)
+  precomputed_allele_frequencies_file <- "../allele_frequencies_independent_variants_all_20250509.txt.gz"
 
-  fwrite(af_tib, "allele_frequencies_independent_variants_all_20250509.txt.gz", col.names=T, row.names=F, quote=F, sep="\t")
-  af_tib <- fread("allele_frequencies_independent_variants_all_20250509.txt.gz")
+  if (file.exists(precomputed_allele_frequencies_file)) {
+    af_tib <- fread(precomputed_allele_frequencies_file)
+  } else {
+    af_tib <- calculate_af_high_mem(independent_variant_set$variant_index,
+                                    independent_variant_set$phenotype,
+                                    variables["gene_inclusion_file"],
+                                    variables["variant_inclusion_file"],
+                                    variables["maf_file"], sample_sizes)
+
+    fwrite(af_tib, precomputed_allele_frequencies_file, col.names=T, row.names=F, quote=F, sep="\t")
+  }
 
   independent_variant_set_annot <- independent_variant_set %>% inner_join(af_tib, by = c("variant_index", "phenotype"="gene")) %>%
-    rename(all_of(c("eaf"="weighted_AF")))
+    rename(all_of(c("weighted_AF"="eaf")))
+
+  variant_reference_start <- variant_reference %>% select(variant_index, locus_start=bp)
+  variant_reference_end <- variant_reference %>% select(variant_index, locus_end=bp)
+
+  independent_variant_set_annot2 <- independent_variant_set_annot %>%
+    inner_join(variant_reference_start, by=c("min_variant_index" = "variant_index")) %>%
+    inner_join(variant_reference_end, by=c("max_variant_index" = "variant_index")) %>%
+    mutate(locus_str = sprintf("%s:%s_%s", chromosome, locus_start, locus_end))
 
   #fwrite(independent_variant_set_annot, "independent_variants_all_annotated_20250320.txt.gz", col.names=T, row.names=F, quote=F, sep="\t")
 
-  fwrite(independent_variant_set_annot, "independent_variants_filtered_lbf2_mlog10p5_annotated_20250509.txt.gz", col.names=T, row.names=F, quote=F, sep="\t")
+  fwrite(independent_variant_set_annot2, "independent_variants_filtered_lbf2_mlog10p5_annotated_20250509.txt.gz", col.names=T, row.names=F, quote=F, sep="\t")
 
   unique_independent_variants <- independent_variant_set_annot %>%
     distinct(variant)
