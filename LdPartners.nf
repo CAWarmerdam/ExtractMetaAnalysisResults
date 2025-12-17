@@ -51,7 +51,7 @@ process FindLdPartners {
         path variantReference
 
     output:
-        path "*_ld_partners.txt.gz", emit: output
+        path "*_ld_partners.txt", emit: output
 
     shell:
         '''
@@ -60,17 +60,18 @@ process FindLdPartners {
           --ld !{ld_panel} \
           --variant-reference !{variantReference} \
           --ld-type pcs \
+          --r2-threshold 0.9 \
         '''
 }
 
 
 //Default parameters
-Channel.fromPath(params.independent_variants).collect().splitText( by: 1000 ).set { variant_file_ch }
+Channel.fromPath(params.independent_variants).collect().splitText( by: 200, file:true ).set { variant_file_ch }
 Channel.fromPath(params.ld).collect().set { permuted_parquet_ch }
 Channel.fromPath(params.variant_reference).collect().set { variant_reference_ch }
 
 workflow {
-    FindLdPartners(variant_file_ch, permuted_parquet_ch, variant_reference_ch)
+    FindLdPartners(variant_file_ch, permuted_parquet_ch, variant_reference_ch).collectFile(name: "ld_partners.txt", keepHeader:true, skip: 1, storeDir: params.output)
 }
 
 workflow.onComplete {

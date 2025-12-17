@@ -130,14 +130,13 @@ main <- function(argv=NULL) {
   cat("Input table:", susie_out_path, "\n")
   min_r2_threshold <- args$r2_threshold
   cat("R2 threshold", min_r2_threshold, "\n")
-  cat("Variant reference":variant_reference_path)
 
   variant_reference_path <- args$variant_reference
 
   # get path of parquet from arguments
   variant_reference <- arrow::read_parquet(variant_reference_path)
-  variant_table <- fread(susie_out_path) %>%
-    inner_join(variant_reference)
+  variant_table <- fread(susie_out_path, header=F, col.names=c("variant")) %>%
+    inner_join(variant_reference, by = "variant")
 
   permuted_dataset_path <- ld_path
   min_r2_threshold
@@ -163,7 +162,7 @@ main <- function(argv=NULL) {
       ld_func = ld_func_window, r2_threshold = min_r2_threshold, kb_threshold = 0.25e6))) %>%
     unnest_wider(ld_partners) %>% unnest_longer(c(variant_index_tagging, r_tagging))
 
-  fwrite(ld_partner_table, sprintf("%s_ld_partners.txt.gz", susie_out_path), sep="\t", col.names=T, row.names=F, quote=F)
+  fwrite(ld_partner_table, sprintf("%s_ld_partners.txt", susie_out_path), sep="\t", col.names=T, row.names=F, quote=F)
 }
 
 if (sys.nframe() == 0 && !interactive()) {
