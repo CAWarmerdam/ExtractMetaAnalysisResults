@@ -139,6 +139,71 @@ def summarize_loci(df):
     return pd.DataFrame(summaries)
 
 
+
+def summarize_loci(df):
+    summaries = []
+    grouped = df.groupby(['phenotype', 'locus_chromosome', 'cluster', 'gene_cluster', 'locus_start', 'locus_end'], dropna=False)
+    for (phenotype, locus_chromosome, cluster, gene_cluster, locus_start, locus_end), group in grouped:
+        lbf_cols = [col for col in df.columns if col.startswith('lbf_cs_')]
+        if lbf_cols:
+            group["max_lbf"] = group[lbf_cols].max(axis=1)
+
+        lambda_value = group['SusieRss_lambda'].values[0]
+
+        group['z_score'] = group['beta'] / group['standard_error']
+        chi_squared_values = np.power(group['z_score'], 2)
+
+        group['p_value'] = 2 * (1 - norm.cdf(np.abs(group['z_score'])))
+
+        # Include all CS variants with highest PIP
+        top_pip_variants = group.loc[group.groupby('SusieRss_CS')['SusieRss_pip'].idxmax()]
+
+        cs_counts = group['SusieRss_CS'].value_counts(dropna=True).to_dict()
+
+        # Filter variants for summary based on thresholds
+        significant_variants = top_pip_variants[(top_pip_variants['max_lbf'] > 2) & (top_pip_variants['p_value'] < 1e-5)]
+
+        # Lead variant
+        lead_variants = group.loc[group.groupby('gene_locus_window')['z_score'].apply(lambda x: x.abs().idxmax())]
+
+        summary = {
+            "phenotype": phenotype,
+            "cluster": cluster,
+            "gene_cluster": gene_cluster,
+            "lambda": lambda_value,
+            "n_snps": len(group),
+            "converged": group['converged'].all(),
+            "trace": group['trace'].values[0],
+            "param_L": group['SusieRss_L_param'].min(),
+            "param_ResVar": group['SusieRss_ResVar'].all(),
+            "min_variant_index": group['variant_index'].min(),
+            "max_variant_index": group['variant_index'].max(),
+            "bp_start": locus_start,
+            "bp_end": locus_end,
+            "lead_variant_index": ','.join(map(str, lead_variants['variant_index'].tolist())),
+            "lead_variant_z": ','.join(map(str, lead_variants['z_score'].tolist())),
+            "lead_variant_beta": ','.join(map(str, lead_variants['beta'].tolist())),
+            "lead_variant_standard_error": ','.join(map(str, lead_variants['standard_error'].tolist())),
+            "n_unique_CSs": group['SusieRss_CS'].nunique(dropna=True),
+            "n_unique_CSs_pass": len(significant_variants),
+            "min_sample_size": group['sample_size'].min(),
+            "max_sample_size": group['sample_size'].max(),
+            "max_chi2": chi_squared_values.max(),
+            "mean_chi2": chi_squared_values.mean(),
+            "max_i2": group['i_squared'].max(),
+            "median_i2": group['i_squared'].median(),
+            "mean_i2": group['i_squared'].mean(),
+            "variant_indices": ','.join(map(str, top_pip_variants['variant_index'].tolist())),
+            "p_values": ','.join(map(str, top_pip_variants['p_value'].tolist())),
+            "max_lbfs": ','.join(map(str, top_pip_variants['max_lbf'].tolist())),
+            "pips": ','.join(map(str, top_pip_variants['SusieRss_pip'].tolist())),
+            "CS_size": ','.join(map(str, [cs_counts.get(cs, 0) for cs in top_pip_variants['SusieRss_CS']])),
+            "CS_size_pass": ','.join(map(str, [cs_counts.get(cs, 0) for cs in significant_variants['SusieRss_CS']])),
+        }
+        summaries.append(summary)
+    return pd.DataFrame(summaries)
+
+
 def parse_finemapping_output(args):
     df_list_pass = list()
     df_list_summary = list()

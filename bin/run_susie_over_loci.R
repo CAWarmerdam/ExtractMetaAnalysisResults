@@ -400,6 +400,8 @@ finemap_locus <- function(empirical_dataset, ld_func, locus_bed, variant_referen
       gene_summary_stats$SusieRss_ResVar = estimated_res_var
 
       if(!is.null(fitted_rss2) && fitted_rss2$converged) {
+        # After thorough testing it appears that CS identifiers after the processing below
+        # should always match the LBF column with the same id.
         print(summary(fitted_rss2))
         gene_summary_stats$converged <- T
         gene_summary_stats$SusieRss_pip = fitted_rss2$pip
