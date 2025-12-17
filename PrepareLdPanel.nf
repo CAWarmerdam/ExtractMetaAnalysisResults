@@ -14,7 +14,9 @@ log.info"""
 
 HASE output analyzer v${workflow.manifest.version}
 ==============================================
-Pipeline for making an LD panel from permuted summary statistics and principal component analysis
+Pipeline for making an LD panel from permuted summary statistics and principal component analysis.
+This used the PCA analyis performed in 'scripts/gene_coexpression.R'. That in turn uses the set of uncorrelated variants
+from ExtractUncorrelatedVariants.nf, as well as the gene-gene correlations from ExtractGeneCorrelations.nf
 
 Usage:
 
