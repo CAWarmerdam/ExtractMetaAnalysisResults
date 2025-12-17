@@ -23,21 +23,32 @@ This pipeline is used to extract subsets of results from the HASE results (numer
 
 Usage:
 
-nextflow run ExtractHaseResults.nf \
---empirical '/inputfolder/' \
---permuted '/outputfile/' \
---genes '/phenotypes.txt' \
---ld-dataset '/dataset/' \
+nextflow run ExtractResults.nf \
+--input '/inputfolder/' \
+--genes 'available_phenotypes.txt' \
+--variant_reference '1000G-30x_index.parquet' \
+--gene_reference 'Homo_sapiens.GRCh38.106.gtf.gz' \
+--mastertable 'mastertable.txt' \
+--variants 'variants_to_extract.txt' \
+--maf-table 'maf_table.txt' \
 --output '/output/'
 
 
 Mandatory arguments:
---empirical           Path to the folder with HASE result .parquet files.
---permuted            Path to where the database should be written
---genes               Path to a file with all unique genes
---maf-table           Path to table with maf per variant
---ld-dataset          Path to LD dataset
---output         	  Path to outputfolder
+--input                 Path to the folder with HASE result .parquet files.
+--genes                 Path to set of genes to extract
+--variant_reference     Path to 1000G-30x_index.parquet
+--maf-table             Path to table with maf per variant
+--gene_reference        Path to ensembl gene reference GTF file
+--mastertable           Path to table with per cohort information
+--output         	    Path to outputfolder
+--inclusion_step_output Path to a directory where files are located indicating which variants and genes are included in the meta-analysis per cohort
+
+Optional arguments
+--bed                       Path to bed file indicating the loci to extract summary statistics for
+--variants                  Path to a set of variants to extract summary statistics for
+--gene_variant_pairs        Path to a file with gene-variant pairs to extract
+--p_threshold               Maximum p-value to use.
 
 """.stripIndent()
 
@@ -109,11 +120,6 @@ summary['Extract variants']                         = extract_variants
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="
-
-// Procedure:
-// Generate breakpoints to get equal numbers of variants per bin
-// Get uncorrelated variants per maf bin
-// Using the uncorrelated variants, do accurate permutation p-value calculation
 
 workflow {
     // Buffer genes

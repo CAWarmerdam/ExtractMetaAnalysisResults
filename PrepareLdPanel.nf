@@ -14,27 +14,22 @@ log.info"""
 
 HASE output analyzer v${workflow.manifest.version}
 ==============================================
-Pipeline for parallelized extraction and filtering of the raw HASE results.
-
-This pipeline is used to extract subsets of results from the HASE results (numerous large .parquet files).
+Pipeline for making an LD panel from permuted summary statistics and principal component analysis
 
 Usage:
 
-nextflow run ExtractHaseResults.nf \
---empirical '/inputfolder/' \
---permuted '/outputfile/' \
+nextflow run PrepareLdPanel.nf \
+--dataset '/inputfolder/' \
+--pca_folder_prefix '/outputfile/' \
 --genes '/phenotypes.txt' \
---ld-dataset '/dataset/' \
---output '/output/'
-
+--variant_reference '/dataset/' \
+--output 'output_path'
 
 Mandatory arguments:
---empirical           Path to the folder with HASE result .parquet files.
---permuted            Path to where the database should be written
+--dataset             Path to the folder with permuted HASE result .parquet files.
+--pca_folder_prefix   Path to where the PCA results are stored
 --genes               Path to a file with all unique genes
---maf-table           Path to table with maf per variant
---ld-dataset          Path to LD dataset
---output              Path to outputfolder
+--variant_reference   Path to the variant reference parquet file
 
 """.stripIndent()
 
@@ -78,14 +73,12 @@ summary['Script dir']                               = workflow.projectDir
 summary['Config Profile']                           = workflow.profile
 summary['Container Engine']                         = workflow.containerEngine
 if(workflow.containerEngine) summary['Container']   = workflow.container
-summary['Empirical eQTLs']                          = params.empirical
-summary['LD data']                                  = params.ld
-summary['Significant eQTLs']                        = params.significant
-summary['Genome reference']                         = params.genome_reference
+summary['Parquet dataset']                          = params.dataset
+summary['PCA folder']                               = params.pca_folder_prefix
 summary['Variant reference']                        = params.variant_reference
-summary['Gene reference']                           = params.gene_reference
 summary['Gene list']                                = params.genes
-summary['Chromosomes']				    = chromosomes
+summary['Chromosomes']				                = chromosomes
+summary['Output']				                    = params.output
 
 log.info summary.collect { k,v -> "${k.padRight(21)}: $v" }.join("\n")
 log.info "======================================================="

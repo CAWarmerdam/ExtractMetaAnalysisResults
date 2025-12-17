@@ -13,28 +13,8 @@ log.info"""
 
 HASE output analyzer v${workflow.manifest.version}
 ==============================================
-Pipeline for parallelized extraction and filtering of the raw HASE results.
-
-This pipeline is used to extract subsets of results from the HASE results (numerous large .parquet files).
-
+Pipeline for extracting LD partners from a set of variants
 Usage:
-
-nextflow run ExtractHaseResults.nf \
---empirical '/inputfolder/' \
---permuted '/outputfile/' \
---genes '/phenotypes.txt' \
---ld-dataset '/dataset/' \
---output '/output/'
-
-
-Mandatory arguments:
---empirical           Path to the folder with HASE result .parquet files.
---permuted            Path to where the database should be written
---genes               Path to a file with all unique genes
---maf-table           Path to table with maf per variant
---ld-dataset          Path to LD dataset
---output              Path to outputfolder
-
 """.stripIndent()
 
 }

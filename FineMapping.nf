@@ -16,27 +16,28 @@ log.info"""
 
 HASE output analyzer v${workflow.manifest.version}
 ==============================================
-Pipeline for parallelized extraction and filtering of the raw HASE results.
-
-This pipeline is used to extract subsets of results from the HASE results (numerous large .parquet files).
+Pipeline for Fine mapping eQTLGen phase 2 summary statistics
 
 Usage:
 
 nextflow run ExtractHaseResults.nf \
---empirical '/inputfolder/' \
---permuted '/outputfile/' \
+--significant '/inputfolder/' \
+--ld '/ld_panel/' \
 --genes '/phenotypes.txt' \
---ld-dataset '/dataset/' \
+--genome_reference 'genome.fa' \
+--variant_reference '1000_30x_wgs.parquet'
+--gene_reference 'gene_reference.gtf'
 --output '/output/'
 
 
 Mandatory arguments:
---empirical           Path to the folder with HASE result .parquet files.
---permuted            Path to where the database should be written
---genes               Path to a file with all unique genes
---maf-table           Path to table with maf per variant
---ld-dataset          Path to LD dataset
---output              Path to outputfolder
+--significant         Path to the folder with HASE result .parquet files.
+--ld                  Path to where LD is stored
+--genes               File with available genes
+--genome_reference    File with genome reference for bedtools
+--variant_reference   File with variant reference in parquet format (with genomic locations of variant ids in the empirical and LD datasets)
+--gene_reference      Ensembl gene reference file
+--output              Output location
 
 """.stripIndent()
 
@@ -55,7 +56,6 @@ if (params.help){
     helpmessage()
     exit 0
 }
-
 
 // Define list of chromosomes to analyse
 chromosomes = params.chromosome ? [params.chromosome.toString()] : (1..22).collect { it.toString() }
